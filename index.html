@@ -288,6 +288,35 @@ tr.row-success:hover { background: #dcfce7 !important; }
 #autosave-bar{margin-top:10px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;user-select:none;}
 #autosave-bar:hover{color:#94a3b8;}
 #autosave-ind{font-size:14px;line-height:1;}
+
+/* ── LOGIN / SESSÃO ── */
+#login-gate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--portal-gradient);}
+.login-box{background:#fff;border-radius:16px;padding:40px 44px;width:400px;max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,.4);text-align:center;}
+.login-logo{height:46px;margin-bottom:20px;object-fit:contain;}
+.login-title{font-size:20px;font-weight:800;color:var(--brand-navy);margin-bottom:4px;}
+.login-sub{font-size:13px;color:var(--brand-slate);margin-bottom:28px;}
+.login-ms-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;background:#fff;border:1.5px solid #CBD5E1;border-radius:8px;font-size:14px;font-weight:600;color:#1E293B;cursor:pointer;transition:background .2s,border-color .2s;}
+.login-ms-btn:hover:not(:disabled){background:var(--brand-mist);border-color:var(--brand-teal);}
+.login-ms-btn:disabled{opacity:.6;cursor:default;}
+.login-err{display:none;margin-top:16px;padding:10px 12px;border-radius:8px;background:#ffe0e4;color:#c81e3a;font-size:12.5px;text-align:left;line-height:1.45;}
+#login-gate-status{margin-top:14px;font-size:12px;color:#94a3b8;min-height:16px;}
+.login-hint{margin-top:18px;font-size:11px;color:#AAB8C2;}
+.user-chip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.88);border-radius:20px;padding:5px 13px;font-size:12px;display:flex;align-items:center;gap:6px;}
+.user-chip svg{width:14px;height:14px;}
+.btn-logout{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.8);border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;}
+.btn-logout svg{width:14px;height:14px;}
+.btn-logout:hover{background:rgba(246,38,66,.25);border-color:rgba(246,38,66,.5);color:#fff;}
+
+/* ── USUÁRIOS ── */
+.user-cell{display:flex;align-items:center;gap:10px;}
+.user-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;}
+.mod-chip{display:inline-block;background:var(--brand-mist);color:var(--brand-slate);border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:600;margin:1px 3px 1px 0;}
+.badge-super{background:var(--brand-teal);color:#fff;}
+.badge-admin{background:var(--brand-navy);color:#fff;}
+.badge svg{width:12px;height:12px;margin-right:3px;}
+.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;}
+.module-grid label{text-transform:none;font-size:13px;font-weight:500;color:var(--gray-700);letter-spacing:0;display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;}
+.module-grid input:disabled{cursor:default;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -296,13 +325,18 @@ tr.row-success:hover { background: #dcfce7 !important; }
 <body>
 
 <!-- LOGIN GATE -->
-<div id="login-gate" style="position:fixed;inset:0;z-index:99999;background:var(--portal-gradient);display:flex;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;padding:40px 36px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);">
-    <img id="login-gate-logo" src="" alt="Lucralize" style="height:44px;max-width:220px;object-fit:contain;margin:0 auto 16px;display:block;" onerror="this.style.display='none'">
-    <h2 style="font-size:18px;margin-bottom:6px;color:#0E1428;">Central de Triagem</h2>
-    <p style="font-size:13px;color:#657786;margin-bottom:24px;">Acesso restrito à equipe Lucralize</p>
-    <button id="login-gate-btn" onclick="gateLogin()" style="width:100%;padding:12px 16px;background:#0C7488;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Entrar com conta Lucralize</button>
-    <div id="login-gate-status" style="margin-top:14px;font-size:12px;color:#9ca3af;"></div>
+<div id="login-gate">
+  <div class="login-box">
+    <img class="login-logo" src="https://images.weserv.nl/?url=lucralize.com.br/wp-content/themes/lucralize-bootscore/img/logo-dark.png" alt="Lucralize" onerror="this.style.display='none'">
+    <div class="login-title">Central de Triagem</div>
+    <div class="login-sub">Acesso restrito à equipe Lucralize</div>
+    <button class="login-ms-btn" id="login-gate-btn" onclick="ctLoginClick()" disabled>
+      <svg width="20" height="20" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
+      <span id="login-gate-btn-label">Verificando sessão...</span>
+    </button>
+    <div class="login-err" id="login-gate-err"></div>
+    <div id="login-gate-status"></div>
+    <div class="login-hint">O acesso é feito com a conta Microsoft (@lucralize.com.br) cadastrada pela administração.</div>
   </div>
 </div>
 
@@ -336,6 +370,10 @@ tr.row-success:hover { background: #dcfce7 !important; }
       <span class="icon"><i data-lucide="circle-pause"></i></span> Suspenso/Em Cancelamento
       <span class="nav-badge" id="badge-susp" style="display:none"></span>
     </div>
+    <div class="nav-section" id="nav-section-admin" style="display:none">Administração</div>
+    <div class="nav-item" onclick="goTo('usuarios')" id="nav-usuarios" style="display:none">
+      <span class="icon"><i data-lucide="users"></i></span> Usuários
+    </div>
   </nav>
 </nav>
 
@@ -346,7 +384,10 @@ tr.row-success:hover { background: #dcfce7 !important; }
       <h2 id="page-title">Painel Geral</h2>
       <p id="page-subtitle">Visão consolidada de todas as pendências</p>
     </div>
-    <div id="page-actions"></div>
+    <div id="page-actions">
+      <div class="user-chip" id="header-user-chip" style="display:none"><i data-lucide="user"></i><span id="header-user-name"></span></div>
+      <button class="btn-logout" id="btn-logout" style="display:none" onclick="ctLogout()"><i data-lucide="log-out"></i> Sair</button>
+    </div>
   </div>
   <div id="content">
 
@@ -581,6 +622,39 @@ tr.row-success:hover { background: #dcfce7 !important; }
 
 
 
+    <!-- ==================== USUÁRIOS ==================== -->
+    <div class="page" id="page-usuarios">
+      <div class="flex-between mb-16">
+        <div class="search-bar" style="flex:1;margin-bottom:0;">
+          <input type="text" class="form-control" id="users-search" placeholder="Buscar por nome ou e-mail..." oninput="renderUsersTable()">
+          <select class="form-control" style="width:200px;" id="users-filter-tipo" onchange="renderUsersTable()">
+            <option value="">Todos os tipos</option>
+            <option>Super Administrador</option>
+            <option>Administrador</option>
+            <option>Colaborador</option>
+          </select>
+        </div>
+        <button class="btn btn-outline" style="margin-left:8px;" onclick="ctOpenUsersPage()"><i data-lucide="refresh-cw"></i> Atualizar</button>
+        <button class="btn btn-primary" style="margin-left:8px;" onclick="openUserModal()"><i data-lucide="user-plus"></i> Novo Usuário</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;"><i data-lucide="info"></i>O acesso é feito pelo e-mail Microsoft (@lucralize.com.br). Não é necessário definir senha. Os módulos definem quais telas cada pessoa vê; a proteção real dos dados é a permissão da pasta no SharePoint.</div>
+      <div class="alert alert-warning" id="users-error" style="display:none;margin-bottom:14px;font-size:12px;align-items:center;"></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Usuário</th><th>Cargo</th><th>Tipo</th><th>Módulos</th><th>Status</th><th></th></tr></thead>
+              <tbody id="users-table-body"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="users-empty" style="display:none;">
+            <div class="icon"><i data-lucide="users"></i></div>
+            <p>Nenhum usuário encontrado.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -647,6 +721,34 @@ tr.row-success:hover { background: #dcfce7 !important; }
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-cert')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveCert()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: USUÁRIO -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3 id="modal-user-title">Novo Usuário</h3>
+      <button class="modal-close" onclick="closeModal('modal-user')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="font-size:12px;"><i data-lucide="info"></i>O acesso é feito pelo e-mail Microsoft (@lucralize.com.br). Não é necessário definir senha.</div>
+      <div class="form-group"><label class="required">Nome completo</label><input class="form-control" id="u-nome" type="text"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="required">E-mail Microsoft</label><input class="form-control" id="u-email" type="email" placeholder="nome@lucralize.com.br"></div>
+        <div class="form-group"><label>Cargo</label><input class="form-control" id="u-cargo" type="text"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tipo</label><select class="form-control" id="u-tipo" onchange="userTipoChanged()"></select></div>
+        <div class="form-group"><label>Ativo</label><select class="form-control" id="u-ativo"><option>Sim</option><option>Não</option></select></div>
+      </div>
+      <div class="form-group"><label>Módulos com acesso</label><div class="module-grid" id="u-modulos"></div></div>
+      <div class="alert alert-danger" id="u-error" style="display:none;font-size:12px;align-items:center;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-user')">Cancelar</button>
+      <button class="btn btn-primary" id="u-save-btn" onclick="saveUser()"><i data-lucide="check"></i> Salvar</button>
     </div>
   </div>
 </div>
@@ -1039,59 +1141,427 @@ async function spMarcarDocEnviada(itemId,divisao){
 }
 function _spSetStatus(txt){const el=document.getElementById('sp-sync-status');if(el)el.textContent=txt;}
 
+// ==================== LOGIN, SESSÃO E USUÁRIOS (padrão Portal Societário) ====================
+const CT_SCOPES=['User.Read','Sites.ReadWrite.All'];
+const CT_SUPER_ADMIN_EMAIL='mateusaraujo@lucralize.com.br';
+const CT_USERS_FILE={
+  url:'',   // ← endereço do CentralTriagem.xlsx no SharePoint (colar aqui)
+  table:'tblUsuarios',
+  cols:['nome','email','cargo','tipo','ativo','modulos','criadoEm']
+};
+const CT_TIPOS=['Super Administrador','Administrador','Colaborador'];
+const CT_MODULES=['Onboarding Tech','Onboarding Contabilidade','Certificados / eCac','Saída de Clientes','Suspensão / Cancelamento','Usuários'];
+const CT_PAGE_MODULE={certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspensão / Cancelamento',usuarios:'Usuários'};
+const CT_LOGOUT_FLAG='ct_logged_out';
+const CT_RECENT_MS=5*60*1000;
+let SESSION=null,CT_USERS=[],ctUsersError='',ctFile=null,ctQueue=Promise.resolve(),ctRecent={},ctEditing=null;
+
+// ── utilitários ──
+function ctEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function ctRank(t){return t==='Super Administrador'?3:t==='Administrador'?2:1;}
+function ctIsAdminTipo(t){return t==='Super Administrador'||t==='Administrador';}
+function ctSplitModules(s){return String(s||'').split(';').map(x=>x.trim()).filter(Boolean);}
+function ctSleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function ctErr(msg){const e=new Error(msg);e.friendly=true;return e;}
+function ctFriendly(e){
+  if(!e)return 'Erro desconhecido.';
+  if(e.friendly)return e.message;
+  if(e.status===403)return 'Sua conta não tem permissão para abrir a planilha de usuários. Peça acesso à administração.';
+  if(e.status===404)return 'Planilha de usuários não encontrada. Verifique o endereço configurado.';
+  if(/user_cancelled/.test((e.errorCode||'')+(e.message||'')))return 'Login cancelado.';
+  return 'Erro ao entrar: '+(e.message||e);
+}
+
+// ── MSAL e token ──
 async function spEnsureMsal(){
   if(_spMsal)return _spMsal;
-  _spMsal=new msal.PublicClientApplication({
-    auth:{clientId:SP_CONFIG.clientId,authority:`https://login.microsoftonline.com/${SP_CONFIG.tenantId}`,redirectUri:window.location.origin+window.location.pathname},
-    cache:{cacheLocation:'sessionStorage'}
+  const app=new msal.PublicClientApplication({
+    auth:{clientId:SP_CONFIG.clientId,authority:`https://login.microsoftonline.com/${SP_CONFIG.tenantId}`,redirectUri:window.location.origin+window.location.pathname.replace(/index\.html$/,'')},
+    cache:{cacheLocation:'localStorage'}
   });
+  if(typeof app.initialize==='function')await app.initialize();
+  _spMsal=app;
   return _spMsal;
 }
-async function spLogin(){
-  await spEnsureMsal();
-  const result=await _spMsal.loginPopup({scopes:["Sites.ReadWrite.All","User.Read"]});
-  _spToken=result.accessToken;
+async function ctAcquireToken(){
+  const app=await spEnsureMsal();
+  const r=await app.loginPopup({scopes:CT_SCOPES,prompt:'select_account'});
+  if(r.account)app.setActiveAccount(r.account);
+  _spToken=r.accessToken;
   return _spToken;
 }
-async function gateLogin(){
-  const btn=document.getElementById('login-gate-btn'),status=document.getElementById('login-gate-status');
-  btn.disabled=true;btn.textContent='Entrando...';
-  try{
-    await spEnsureMsal();
-    const result=await _spMsal.loginPopup({scopes:["User.Read","Sites.ReadWrite.All"]});
-    _spToken=result.accessToken;
-    document.getElementById('login-gate').style.display='none';
-    spSyncCertsPull();spFetchClientStatuses();spFetchChecklist();
-  }catch(e){
-    console.error(e);
-    if(status)status.textContent='Erro no login: '+e.message;
-    btn.disabled=false;btn.textContent='Entrar com conta Lucralize';
-  }
+async function ctRenewToken(){
+  const app=await spEnsureMsal();
+  const account=app.getActiveAccount()||app.getAllAccounts()[0];
+  if(!account)throw ctErr('Sessão expirada. Entre novamente.');
+  const r=await app.acquireTokenSilent({scopes:CT_SCOPES,account});
+  _spToken=r.accessToken;
 }
-async function gateCheckSession(){
-  try{
-    await spEnsureMsal();
-    const accounts=_spMsal.getAllAccounts();
-    if(accounts.length>0){
-      const result=await _spMsal.acquireTokenSilent({scopes:["User.Read","Sites.ReadWrite.All"],account:accounts[0]});
-      _spToken=result.accessToken;
-      document.getElementById('login-gate').style.display='none';
-      spSyncCertsPull();spFetchClientStatuses();spFetchChecklist();
-    }
-  }catch(e){/* mantém a tela de login visível */}
-}
-async function spGraph(method,path,body,extraHeaders){
+async function spLogin(){return ctAcquireToken();}
+
+// ── Graph: renova o token uma vez em 401 e respeita Retry-After em 429/503 ──
+async function spGraph(method,path,body,extraHeaders,tentativa=0){
   const headers={'Authorization':`Bearer ${_spToken}`,'Content-Type':'application/json'};
   if(extraHeaders)Object.assign(headers,extraHeaders);
   const res=await fetch(`https://graph.microsoft.com/v1.0${path}`,{
-    method,
-    headers,
+    method,headers,cache:'no-store',
     body:(method!=='GET'&&method!=='HEAD'&&body)?JSON.stringify(body):undefined
   });
-  if(!res.ok){const t=await res.text();throw new Error(`Graph ${method} ${path} -> ${res.status}: ${t}`);}
+  if(res.status===401&&tentativa===0){await ctRenewToken();return spGraph(method,path,body,extraHeaders,1);}
+  if((res.status===429||res.status===503)&&tentativa<4){
+    await ctSleep(Math.max(1,Number(res.headers.get('Retry-After')||2))*1000);
+    return spGraph(method,path,body,extraHeaders,tentativa+1);
+  }
+  if(!res.ok){const t=await res.text();const e=new Error(`Graph ${method} ${path} -> ${res.status}: ${t}`);e.status=res.status;throw e;}
   if(res.status===204)return null;
   return res.json();
 }
+
+// ── tela de login ──
+function ctGateSet(o){
+  const g=id=>document.getElementById(id);
+  if('label' in o)g('login-gate-btn-label').textContent=o.label;
+  if('disabled' in o)g('login-gate-btn').disabled=o.disabled;
+  if('err' in o){g('login-gate-err').textContent=o.err||'';g('login-gate-err').style.display=o.err?'block':'none';}
+  if('status' in o)g('login-gate-status').textContent=o.status||'';
+  g('login-gate').style.display='flex';
+}
+function ctHandleAuthError(e){
+  console.error(e);
+  ctGateSet({disabled:false,status:'',
+    label:e&&e.denied?'Entrar com outra conta':'Entrar com conta Microsoft',
+    err:e&&e.denied?'Sem acesso ao portal. Seu e-mail não está cadastrado ou está inativo. Procure a administração.':ctFriendly(e)});
+}
+async function ctLoginClick(){
+  ctGateSet({disabled:true,label:'Entrando...',err:'',status:''});
+  try{
+    localStorage.removeItem(CT_LOGOUT_FLAG);
+    await ctAcquireToken();
+    await ctAuthenticate();
+  }catch(e){ctHandleAuthError(e);}
+}
+async function ctBoot(){
+  // a janela de popup do próprio login não deve rodar a inicialização
+  if(window.opener&&window.opener!==window&&/(code=|error=)/.test(location.hash+location.search))return;
+  if(typeof msal==='undefined'){
+    ctGateSet({disabled:true,label:'Entrar com conta Microsoft',err:'Não foi possível carregar o login Microsoft (biblioteca bloqueada pela rede).'});
+    return;
+  }
+  try{
+    const app=await spEnsureMsal();
+    const account=app.getActiveAccount()||app.getAllAccounts()[0];
+    if(account&&!localStorage.getItem(CT_LOGOUT_FLAG)){
+      ctGateSet({disabled:true,label:'Verificando sessão...',err:'',status:''});
+      try{
+        const r=await app.acquireTokenSilent({scopes:CT_SCOPES,account});
+        _spToken=r.accessToken;
+        await ctAuthenticate();
+        return;
+      }catch(e){
+        if(e&&(e.denied||e.status||e.friendly)){ctHandleAuthError(e);return;}
+        console.warn('Sessão silenciosa indisponível:',e);
+      }
+    }
+  }catch(e){console.error(e);}
+  ctGateSet({disabled:false,label:'Entrar com conta Microsoft',err:'',status:''});
+}
+
+// ── autenticação: e-mail da conta × tabela de usuários ──
+async function ctAuthenticate(){
+  ctGateSet({status:'Verificando seu cadastro...'});
+  const me=await spGraph('GET','/me?$select=displayName,mail,userPrincipalName');
+  const emails=[me.mail,me.userPrincipalName].filter(Boolean).map(x=>x.toLowerCase());
+  const isSuper=emails.includes(CT_SUPER_ADMIN_EMAIL);
+  let loadErr=null;
+  try{await ctLoadUsers();}catch(e){loadErr=e;}
+  const row=CT_USERS.find(u=>emails.includes(u.email.toLowerCase()));
+  if(isSuper){
+    // Super Administrador fixo no código: entra mesmo se a planilha falhar (modo de recuperação)
+    SESSION={nome:(row&&row.nome)||me.displayName||'Mateus Araújo',email:CT_SUPER_ADMIN_EMAIL,tipo:'Super Administrador',ativo:true,modulos:CT_MODULES.slice()};
+    ctUsersError=loadErr?ctFriendly(loadErr):'';
+  }else{
+    if(loadErr)throw loadErr;
+    if(!row||row.ativo!=='Sim'||!CT_TIPOS.includes(row.tipo)){const d=new Error('DENIED');d.denied=true;throw d;}
+    SESSION={nome:row.nome,email:row.email.toLowerCase(),tipo:row.tipo,ativo:true,
+      modulos:ctIsAdminTipo(row.tipo)?CT_MODULES.slice():ctSplitModules(row.modulos).filter(m=>CT_MODULES.includes(m))};
+    ctUsersError='';
+  }
+  ctEnterApp();
+}
+function ctEnterApp(){
+  document.getElementById('login-gate').style.display='none';
+  document.getElementById('header-user-name').textContent=SESSION.nome;
+  document.getElementById('header-user-chip').style.display='';
+  document.getElementById('btn-logout').style.display='';
+  ctApplyPermissions();
+  goTo('painel');
+  spSyncCertsPull();spFetchClientStatuses();spFetchChecklist();
+  if(ctUsersError)toast('Modo de recuperação — '+ctUsersError,'warning');
+  refreshIcons();
+}
+function ctLogout(){
+  if(!confirm('Deseja sair do portal?'))return;
+  localStorage.setItem(CT_LOGOUT_FLAG,'1');
+  SESSION=null;_spToken=null;CT_USERS=[];ctFile=null;ctUsersError='';ctRecent={};
+  _clientStatusCache=[];_saidaCache=[];_checklistCache=[];
+  document.getElementById('header-user-chip').style.display='none';
+  document.getElementById('btn-logout').style.display='none';
+  closeModal('modal-user');
+  ctGateSet({disabled:false,label:'Entrar com conta Microsoft',err:'',status:''});
+}
+
+// ── permissões (organização das telas; a segurança real é a permissão da pasta no SharePoint) ──
+function ctCanAccess(page){
+  if(!SESSION)return false;
+  const mod=CT_PAGE_MODULE[page];
+  if(!mod)return true;
+  return ctIsAdminTipo(SESSION.tipo)||SESSION.modulos.includes(mod);
+}
+function ctApplyPermissions(){
+  Object.keys(CT_PAGE_MODULE).forEach(page=>{
+    const el=document.getElementById('nav-'+page);
+    if(el)el.style.display=ctCanAccess(page)?'':'none';
+  });
+  const sec=document.getElementById('nav-section-admin');
+  if(sec)sec.style.display=ctCanAccess('usuarios')?'':'none';
+}
+function ctIsProtected(u){return u.tipo==='Super Administrador'||String(u.email).toLowerCase()===CT_SUPER_ADMIN_EMAIL;}
+function ctCanManage(t){
+  if(!SESSION||ctIsProtected(t))return false;
+  if(String(t.email).toLowerCase()===SESSION.email)return false;
+  if(ctRank(SESSION.tipo)===1)return ctRank(t.tipo)===1;
+  return true;
+}
+
+// ── planilha de usuários (Excel via Graph Workbook API) ──
+async function ctResolveByPath(u){
+  const segs=u.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  let sitePath='';
+  if(segs[0]==='sites'||segs[0]==='teams')sitePath='/'+segs[0]+'/'+segs[1];
+  const site=await spGraph('GET',`/sites/${u.hostname}${sitePath?':'+sitePath:''}?$select=id`);
+  const drives=await spGraph('GET',`/sites/${site.id}/drives?$select=id,name,webUrl`);
+  const full=decodeURIComponent(u.origin+u.pathname);
+  let best=null;
+  drives.value.forEach(d=>{
+    const w=decodeURIComponent(d.webUrl);
+    if(full.toLowerCase().startsWith(w.toLowerCase()+'/')&&(!best||w.length>best.w.length))best={d,w};
+  });
+  if(!best)throw new Error('Biblioteca não encontrada para o endereço informado.');
+  const rel=full.slice(best.w.length+1);
+  const item=await spGraph('GET',`/drives/${best.d.id}/root:/${rel.split('/').map(encodeURIComponent).join('/')}?$select=id`);
+  return{driveId:best.d.id,itemId:item.id};
+}
+async function ctResolveFile(){
+  if(ctFile)return ctFile;
+  const raw=(CT_USERS_FILE.url||'').trim();
+  if(!raw)throw ctErr('O endereço da planilha de usuários ainda não foi configurado na Central.');
+  let u;try{u=new URL(raw);}catch(e){throw ctErr('Endereço da planilha de usuários inválido.');}
+  const isShare=/\/:[a-z]:\//i.test(u.pathname);
+  let res=null;
+  if(!isShare){
+    try{res=await ctResolveByPath(u);}
+    catch(e){if(e.status===401||e.status===403)throw e;console.warn('Resolução por caminho falhou; tentando /shares:',e.message);}
+  }
+  if(!res){
+    const id='u!'+btoa(unescape(encodeURIComponent(isShare?raw:u.origin+u.pathname))).replace(/=+$/,'').replace(/\//g,'_').replace(/\+/g,'-');
+    const it=await spGraph('GET',`/shares/${id}/driveItem?$select=id,parentReference`);
+    res={driveId:it.parentReference.driveId,itemId:it.id};
+  }
+  ctFile=res;
+  return ctFile;
+}
+async function ctWb(){const f=await ctResolveFile();return `/drives/${f.driveId}/items/${f.itemId}/workbook`;}
+function ctSerialToDate(v){
+  if(typeof v==='number'&&v>20000){
+    const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);
+    return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
+  }
+  return v==null?'':String(v);
+}
+function ctTodaySerial(){const n=new Date();return Math.floor(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())/86400000)+25569;}
+function ctRowToUser(v){
+  const s=x=>String(x==null?'':x).trim();
+  return{nome:s(v[0]),email:s(v[1]),cargo:s(v[2]),tipo:s(v[3]),ativo:s(v[4]),modulos:s(v[5]),criadoEmRaw:v[6],criadoEm:ctSerialToDate(v[6])};
+}
+function ctUserValues(u){return[u.nome,u.email,u.cargo||'',u.tipo,u.ativo,u.modulos||'',(u.criadoEmRaw!=null&&u.criadoEmRaw!=='')?u.criadoEmRaw:ctTodaySerial()];}
+function ctSig(u){return[u.nome,String(u.email).toLowerCase(),u.cargo,u.tipo,u.ativo,u.modulos].join('\u0001');}
+async function ctReadRowsIdx(sessionId){
+  const wb=await ctWb(),t=CT_USERS_FILE.table,h=sessionId?{'workbook-session-id':sessionId}:undefined;
+  const cols=await spGraph('GET',`${wb}/tables/${t}/columns?$select=name`,null,h);
+  const names=cols.value.map(c=>String(c.name).trim().toLowerCase()).join('|');
+  if(names!==CT_USERS_FILE.cols.map(c=>c.toLowerCase()).join('|'))
+    throw ctErr('A planilha de usuários está com colunas diferentes do esperado ('+CT_USERS_FILE.cols.join(', ')+').');
+  const rows=await spGraph('GET',`${wb}/tables/${t}/rows`,null,h);
+  return rows.value.map((r,i)=>({idx:(r.index!=null?r.index:i),u:ctRowToUser(r.values[0])})).filter(x=>x.u.email);
+}
+// o Excel demora a mostrar o que acabou de ser gravado a quem lê de fora da sessão:
+// lembramos por alguns minutos o que nós mesmos gravamos/apagamos
+function ctApplyRecent(list){
+  const now=Date.now();
+  Object.keys(ctRecent).forEach(k=>{
+    const r=ctRecent[k];
+    if(now-r.ts>CT_RECENT_MS){delete ctRecent[k];return;}
+    const i=list.findIndex(u=>u.email.toLowerCase()===k);
+    if(r.user===null){if(i>=0)list.splice(i,1);}
+    else if(i>=0)list[i]=Object.assign({},r.user);
+    else list.push(Object.assign({},r.user));
+  });
+  return list;
+}
+async function ctLoadUsers(){
+  const rows=await ctReadRowsIdx();
+  CT_USERS=ctApplyRecent(rows.map(x=>x.u));
+  return CT_USERS;
+}
+function ctEnqueue(fn){const run=ctQueue.then(()=>fn());ctQueue=run.catch(()=>{});return run;}
+async function ctWithSession(fn){
+  const wb=await ctWb();
+  const s=await spGraph('POST',`${wb}/createSession`,{persistChanges:true});
+  try{return await fn(s.id,wb);}
+  finally{try{await spGraph('POST',`${wb}/closeSession`,null,{'workbook-session-id':s.id});}catch(e){console.warn('closeSession:',e.message);}}
+}
+function ctConflict(){return ctErr('Este cadastro foi alterado por outra pessoa. Atualize a lista e tente de novo.');}
+async function ctSaveUser(u,original){
+  await ctEnqueue(()=>ctWithSession(async(sid,wb)=>{
+    const h={'workbook-session-id':sid},t=CT_USERS_FILE.table;
+    const rows=await ctReadRowsIdx(sid);
+    const key=u.email.toLowerCase();
+    if(!original){
+      if(rows.some(r=>r.u.email.toLowerCase()===key))throw ctErr('Já existe um usuário cadastrado com este e-mail.');
+      u.criadoEmRaw=ctTodaySerial();
+      await spGraph('POST',`${wb}/tables/${t}/rows/add`,{index:null,values:[ctUserValues(u)]},h);
+    }else{
+      const cur=rows.find(r=>r.u.email.toLowerCase()===original.email.toLowerCase());
+      if(!cur||ctSig(cur.u)!==ctSig(original))throw ctConflict();
+      u.criadoEmRaw=cur.u.criadoEmRaw;
+      await spGraph('PATCH',`${wb}/tables/${t}/rows/itemAt(index=${cur.idx})`,{values:[ctUserValues(u)]},h);
+    }
+  }));
+  const key=u.email.toLowerCase();
+  u.criadoEm=ctSerialToDate(u.criadoEmRaw);
+  ctRecent[key]={ts:Date.now(),user:Object.assign({},u)};
+  const i=CT_USERS.findIndex(x=>x.email.toLowerCase()===key);
+  if(i>=0)CT_USERS[i]=Object.assign({},u);else CT_USERS.push(Object.assign({},u));
+}
+async function ctDeleteUser(original){
+  await ctEnqueue(()=>ctWithSession(async(sid,wb)=>{
+    const rows=await ctReadRowsIdx(sid);
+    const cur=rows.find(r=>r.u.email.toLowerCase()===original.email.toLowerCase());
+    if(!cur)return;   // já não existe: nada a apagar
+    if(ctSig(cur.u)!==ctSig(original))throw ctConflict();
+    await spGraph('DELETE',`${wb}/tables/${CT_USERS_FILE.table}/rows/itemAt(index=${cur.idx})`,null,{'workbook-session-id':sid});
+  }));
+  const key=original.email.toLowerCase();
+  ctRecent[key]={ts:Date.now(),user:null};
+  CT_USERS=CT_USERS.filter(x=>x.email.toLowerCase()!==key);
+}
+
+// ── módulo Usuários (interface) ──
+function ctAvatarColor(n){let h=0;for(const c of String(n||''))h=(h*31+c.charCodeAt(0))%3;return['#0E1428','#0C7488','#181F26'][h];}
+function ctInitials(n){const p=String(n||'?').trim().split(/\s+/);return((p[0][0]||'?')+(p.length>1?p[p.length-1][0]:'')).toUpperCase();}
+function ctUsersToShow(){
+  const list=CT_USERS.slice();
+  if(!list.some(u=>u.email.toLowerCase()===CT_SUPER_ADMIN_EMAIL))
+    list.unshift({nome:'Mateus Araújo',email:CT_SUPER_ADMIN_EMAIL,cargo:'',tipo:'Super Administrador',ativo:'Sim',modulos:CT_MODULES.join('; '),virtual:true});
+  return list;
+}
+function renderUsersTable(){
+  const body=document.getElementById('users-table-body'),empty=document.getElementById('users-empty');
+  if(!body)return;
+  const warn=document.getElementById('users-error');
+  warn.style.display=ctUsersError?'flex':'none';
+  warn.innerHTML=ctUsersError?'<i data-lucide="triangle-alert"></i><span>'+ctEsc(ctUsersError)+'</span>':'';
+  const q=(document.getElementById('users-search').value||'').toLowerCase(),tf=document.getElementById('users-filter-tipo').value;
+  let list=ctUsersToShow();
+  if(q)list=list.filter(u=>u.nome.toLowerCase().includes(q)||u.email.toLowerCase().includes(q));
+  if(tf)list=list.filter(u=>u.tipo===tf);
+  list.sort((a,b)=>ctRank(b.tipo)-ctRank(a.tipo)||a.nome.localeCompare(b.nome,'pt-BR'));
+  if(!list.length){body.innerHTML='';empty.style.display='';refreshIcons();return;}
+  empty.style.display='none';
+  body.innerHTML=list.map(u=>{
+    const em=ctEsc(u.email),adm=ctIsAdminTipo(u.tipo);
+    const tipoCls=u.tipo==='Super Administrador'?'badge-super':u.tipo==='Administrador'?'badge-admin':'badge-navy';
+    const mods=adm?'<span class="text-gray" style="font-size:11px;">Todos os módulos</span>'
+      :(ctSplitModules(u.modulos).map(m=>`<span class="mod-chip">${ctEsc(m)}</span>`).join('')||'<span class="text-gray" style="font-size:11px;">Somente Painel e Recebimento</span>');
+    let act='<span class="text-gray">—</span>';
+    if(u.virtual||ctIsProtected(u))act='<span class="badge badge-navy"><i data-lucide="shield-check"></i> Protegido</span>';
+    else if(u.email.toLowerCase()===(SESSION&&SESSION.email))act='<span class="badge badge-gray">Você</span>';
+    else if(ctCanManage(u))act=`<button class="btn btn-outline btn-sm btn-icon" data-act="edit" data-email="${em}" title="Editar"><i data-lucide="pencil"></i></button> `
+      +`<button class="btn btn-outline btn-sm btn-icon" data-act="toggle" data-email="${em}" title="${u.ativo==='Sim'?'Desativar':'Ativar'}"><i data-lucide="${u.ativo==='Sim'?'lock':'circle-check'}"></i></button> `
+      +`<button class="btn btn-outline btn-sm btn-icon" style="color:var(--danger);" data-act="delete" data-email="${em}" title="Excluir"><i data-lucide="trash-2"></i></button>`;
+    return `<tr><td><div class="user-cell"><div class="user-avatar" style="background:${ctAvatarColor(u.nome)}">${ctEsc(ctInitials(u.nome))}</div><div><strong>${ctEsc(u.nome)}</strong><div class="text-gray" style="font-size:11px;">${em}</div></div></div></td>`
+      +`<td>${ctEsc(u.cargo)||'—'}</td><td><span class="badge ${tipoCls}">${ctEsc(u.tipo)}</span></td><td>${mods}</td>`
+      +`<td>${u.ativo==='Sim'?'<span class="badge badge-success">Ativo</span>':'<span class="badge badge-gray">Inativo</span>'}</td><td style="white-space:nowrap;">${act}</td></tr>`;
+  }).join('');
+  refreshIcons();
+}
+function ctOpenUsersPage(){
+  renderUsersTable();
+  ctLoadUsers().then(()=>{ctUsersError='';renderUsersTable();}).catch(e=>{ctUsersError=ctFriendly(e);renderUsersTable();});
+}
+function ctFindUser(email){return CT_USERS.find(u=>u.email.toLowerCase()===String(email).toLowerCase());}
+function openUserModal(email){
+  const orig=email?ctFindUser(email):null;
+  if(email&&(!orig||!ctCanManage(orig)))return;
+  ctEditing=orig;
+  document.getElementById('modal-user-title').textContent=orig?'Editar Usuário':'Novo Usuário';
+  document.getElementById('u-nome').value=orig?orig.nome:'';
+  const em=document.getElementById('u-email');em.value=orig?orig.email:'';em.readOnly=!!orig;
+  document.getElementById('u-cargo').value=orig?orig.cargo:'';
+  const tipoSel=document.getElementById('u-tipo');
+  tipoSel.innerHTML=CT_TIPOS.filter(t=>ctRank(t)<=ctRank(SESSION.tipo)).map(t=>`<option>${t}</option>`).join('');
+  tipoSel.value=orig?orig.tipo:'Colaborador';
+  document.getElementById('u-ativo').value=orig?orig.ativo:'Sim';
+  const have=orig?ctSplitModules(orig.modulos):[];
+  document.getElementById('u-modulos').innerHTML=CT_MODULES.map((m,i)=>`<label><input type="checkbox" value="${ctEsc(m)}" ${have.includes(m)?'checked':''}> ${ctEsc(m)}</label>`).join('');
+  document.getElementById('u-error').style.display='none';
+  userTipoChanged();
+  openModal('modal-user');refreshIcons();
+}
+function userTipoChanged(){
+  const adm=ctIsAdminTipo(document.getElementById('u-tipo').value);
+  document.querySelectorAll('#u-modulos input').forEach(cb=>{if(adm)cb.checked=true;cb.disabled=adm;});
+}
+async function saveUser(){
+  const err=document.getElementById('u-error'),btn=document.getElementById('u-save-btn');
+  const fail=m=>{err.textContent=m;err.style.display='flex';};
+  err.style.display='none';
+  const nome=document.getElementById('u-nome').value.trim(),email=document.getElementById('u-email').value.trim().toLowerCase();
+  const tipo=document.getElementById('u-tipo').value,ativo=document.getElementById('u-ativo').value;
+  if(!nome)return fail('Informe o nome completo.');
+  if(!/^[^\s@;]+@[^\s@;]+\.[^\s@;]+$/.test(email))return fail('Informe um e-mail válido (@lucralize.com.br).');
+  if(ctRank(tipo)>ctRank(SESSION.tipo))return fail('Você não pode atribuir este tipo de usuário.');
+  if(ctEditing&&!ctCanManage(ctEditing))return fail('Você não pode alterar este usuário.');
+  if(email===CT_SUPER_ADMIN_EMAIL)return fail('Este e-mail pertence ao Super Administrador fixo do sistema.');
+  const mods=ctIsAdminTipo(tipo)?CT_MODULES.slice():[...document.querySelectorAll('#u-modulos input:checked')].map(cb=>cb.value);
+  const u={nome,email,cargo:document.getElementById('u-cargo').value.trim(),tipo,ativo,modulos:mods.join('; ')};
+  btn.disabled=true;
+  try{
+    await ctSaveUser(u,ctEditing);
+    closeModal('modal-user');renderUsersTable();
+    toast(ctEditing?'Usuário atualizado!':'Usuário cadastrado!');
+  }catch(e){console.error(e);fail(ctFriendly(e));}
+  finally{btn.disabled=false;}
+}
+async function ctToggleUser(email){
+  const orig=ctFindUser(email);if(!orig||!ctCanManage(orig))return;
+  const ativando=orig.ativo!=='Sim';
+  if(!ativando&&!confirm(`Desativar ${orig.nome}? A pessoa perde o acesso ao portal.`))return;
+  try{await ctSaveUser(Object.assign({},orig,{ativo:ativando?'Sim':'Não'}),orig);renderUsersTable();toast(ativando?'Usuário ativado!':'Usuário desativado!');}
+  catch(e){console.error(e);toast(ctFriendly(e),'error');}
+}
+async function ctRemoveUser(email){
+  const orig=ctFindUser(email);if(!orig||!ctCanManage(orig))return;
+  if(!confirm(`Excluir ${orig.nome} (${orig.email}) da planilha de usuários? Esta ação não pode ser desfeita.`))return;
+  try{await ctDeleteUser(orig);renderUsersTable();toast('Usuário excluído.');}
+  catch(e){console.error(e);toast(ctFriendly(e),'error');}
+}
+document.getElementById('users-table-body').addEventListener('click',ev=>{
+  const b=ev.target.closest('button[data-act]');if(!b)return;
+  const em=b.dataset.email,act=b.dataset.act;
+  if(act==='edit')openUserModal(em);else if(act==='toggle')ctToggleUser(em);else if(act==='delete')ctRemoveUser(em);
+});
+
 async function spResolveSite(divisao){
   if(_spSiteIds[divisao])return{siteId:_spSiteIds[divisao],listId:_spListIds[divisao]};
   const cfg=SP_CONFIG.sites[divisao];if(!cfg)throw new Error('Divisão sem configuração SharePoint: '+divisao);
@@ -1305,12 +1775,13 @@ function dbSave(k,item){
 function dbDelete(k,id){dbSet(k,dbGet(k).filter(i=>i.id!==id));}
 
 // ==================== NAVIGATION ====================
-const pages={painel:'Painel Geral',documentos:'Recebimento de Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento'};
-const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Checklist de recebimento por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento'};
+const pages={painel:'Painel Geral',documentos:'Recebimento de Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento',usuarios:'Usuários'};
+const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Checklist de recebimento por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento',usuarios:'Cadastro e permissões de acesso'};
 let currentPage='painel', currentEditId=null, alertaCertId=null, alertaTipo=null;
 
 function refreshIcons(){ try{ if(window.lucide&&lucide.createIcons)lucide.createIcons(); }catch(e){ console.warn('Lucide:',e); } }
 function goTo(page) {
+  if(!ctCanAccess(page)){ toast('Você não tem acesso a este módulo.','error'); return; }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const pg=document.getElementById('page-'+page);
@@ -1320,7 +1791,7 @@ function goTo(page) {
   document.getElementById('page-title').textContent=pages[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   currentPage=page;
-  const fns={painel:renderPainel,documentos:renderDocsTable,certificados:renderCertsTable,saida:renderSaidaTable,suspensos:renderSuspTable};
+  const fns={painel:renderPainel,documentos:renderDocsTable,certificados:renderCertsTable,saida:renderSaidaTable,suspensos:renderSuspTable,usuarios:ctOpenUsersPage};
   if(fns[page]) fns[page]();
   if(page==='certificados') setTimeout(verificarDispatchAutomatico,400);
   refreshIcons();
@@ -1767,6 +2238,157 @@ function atualizarLogo(){
   if(prevWrap)prevWrap.style.display='block';
 }
 
+// ==================== EXPORTAR EXCEL (Certificados) ====================
+async function _logoBuffer(){
+  // 1. Custom logo uploaded by user
+  const custom=localStorage.getItem('triagem_logo');
+  if(custom){try{const r=await fetch(custom);if(r.ok)return{buf:await r.arrayBuffer(),ext:'png'};}catch{}}
+  // 2. Real logo via weserv.nl CORS proxy
+  try{
+    const r=await fetch(LUCRALIZE_LOGO);
+    if(r.ok){const buf=await r.arrayBuffer();if(buf.byteLength>500)return{buf,ext:'png'};}
+  }catch{}
+  // 3. Fallback: draw SVG on canvas
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=4;
+      const w=img.naturalWidth||300,h=img.naturalHeight||60;
+      const c=document.createElement('canvas');
+      c.width=w*scale;c.height=h*scale;
+      const ctx=c.getContext('2d');
+      ctx.scale(scale,scale);
+      ctx.drawImage(img,0,0);
+      c.toBlob(blob=>{blob.arrayBuffer().then(buf=>resolve({buf,ext:'png'})).catch(()=>resolve(null));},'image/png');
+    };
+    img.onerror=()=>resolve(null);
+    img.src=LUCRALIZE_LOGO_SVG;
+  });
+}
+
+async function exportarCertsExcel(){
+  // respect current filters
+  const search=document.getElementById('cert-search').value.toLowerCase();
+  const divF=document.getElementById('cert-filter-div').value;
+  const vencF=document.getElementById('cert-filter-venc')?.value||'';
+  const procVencF=document.getElementById('cert-filter-proc-venc')?.value||'';
+  const certDigF=document.getElementById('cert-filter-cert-dig')?.value||'';
+  const procF=document.getElementById('cert-filter-proc')?.value||'';
+  let data=dbGet('certs');
+  if(search)data=data.filter(c=>c.cnpj.includes(search)||c.razaoSocial.toLowerCase().includes(search));
+  if(divF)data=data.filter(c=>c.divisao===divF);
+  if(vencF==='vencidos')data=data.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d<0;});
+  else if(vencF==='15dias')data=data.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d>=0&&d<=15;});
+  if(procVencF==='vencidos')data=data.filter(c=>{const d=daysDiff(c.procVenc);return d!==null&&d<0;});
+  else if(procVencF==='15dias')data=data.filter(c=>{const d=daysDiff(c.procVenc);return d!==null&&d>=0&&d<=15;});
+  if(certDigF)data=data.filter(c=>c.temCertificado===certDigF);
+  if(procF)data=data.filter(c=>c.statusProcuracao===procF);
+  if(!data.length){toast('Nenhum registro para exportar.','error');return;}
+  data.sort((a,b)=>{if(a.divisao!==b.divisao)return a.divisao==='Contabilidade'?-1:1;return a.razaoSocial.localeCompare(b.razaoSocial,'pt-BR');});
+  const hoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+
+  const workbook=new ExcelJS.Workbook();
+  const ws=workbook.addWorksheet('Certificados e-CAC');
+
+  ws.columns=[
+    {width:22},{width:50},{width:16},{width:14},
+    {width:18},{width:18},{width:16},{width:16},
+    {width:14},{width:12},{width:12},{width:30}
+  ];
+
+  // Linha 1: cabeçalho navy
+  ws.mergeCells('A1:L1');
+  ws.getRow(1).height=42;
+  const c1=ws.getCell('A1');
+  c1.value='CERTIFICADOS / e-CAC';
+  c1.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0D1328'}};
+  c1.font={bold:true,size:14,color:{argb:'FFFFFFFF'},name:'Calibri'};
+  c1.alignment={horizontal:'center',vertical:'middle'};
+
+  // Linha 2: subtítulo navy
+  ws.mergeCells('A2:L2');
+  ws.getRow(2).height=16;
+  const c2=ws.getCell('A2');
+  c2.value=`Central de Triagem — Lucralize  |  ${hoje}  |  ${data.length} registro${data.length!==1?'s':''}`;
+  c2.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0D1328'}};
+  c2.font={size:9,color:{argb:'FF91DBE4'},name:'Calibri'};
+  c2.alignment={horizontal:'center',vertical:'middle'};
+
+  // Linha 3: espaçador
+  ws.mergeCells('A3:L3');
+  ws.getRow(3).height=5;
+  ws.getCell('A3').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0D1328'}};
+
+  // Linha 4: cabeçalhos teal
+  ws.getRow(4).height=22;
+  const headers=['CNPJ','Razão Social','Divisão','Tipo Cert.','Venc. Certificado','Venc. Procuração','Cert. Digital','Procuração eCac','Req. Código','Alerta 30d','Alerta 15d','Observações'];
+  headers.forEach((h,i)=>{
+    const cell=ws.getCell(4,i+1);
+    cell.value=h;
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0C7488'}};
+    cell.font={bold:true,size:10,color:{argb:'FFFFFFFF'},name:'Calibri'};
+    cell.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+  });
+
+  // Linhas de dados — com separadores de divisão
+  let currentDiv=null;
+  let rn=5;
+  data.forEach(c=>{
+    // Linha separadora de divisão
+    if(c.divisao!==currentDiv){
+      currentDiv=c.divisao;
+      ws.mergeCells(`A${rn}:L${rn}`);
+      ws.getRow(rn).height=18;
+      const sc=ws.getCell(`A${rn}`);
+      sc.value=(c.divisao==='Contabilidade'?'📊 ':'💻 ')+c.divisao.toUpperCase();
+      sc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8F4F7'}};
+      sc.font={bold:true,size:10,color:{argb:'FF0C7488'},name:'Calibri'};
+      sc.alignment={horizontal:'left',vertical:'middle'};
+      rn++;
+    }
+    ws.getRow(rn).height=15;
+    const vals=[
+      c.cnpj,
+      c.razaoSocial,
+      c.divisao,
+      c.tipo||'',
+      c.vencimento?fmtDate(c.vencimento):'',
+      c.procVenc?fmtDate(c.procVenc):'',
+      c.temCertificado||'',
+      c.statusProcuracao||'',
+      c.codigoAcesso||'',
+      c.alerta30==='Sim'?'Sim':'',
+      c.alerta15==='Sim'?'Sim':'',
+      c.obs||''
+    ];
+    vals.forEach((v,ci)=>{
+      const cell=ws.getCell(rn,ci+1);
+      cell.value=v;
+      cell.font={size:10,name:'Calibri'};
+      cell.alignment={vertical:'top',wrapText:ci===1||ci===11};
+      // Colorir vencimentos expirados/próximos
+      if((ci===4||ci===5)&&v){
+        const iso=ci===4?c.vencimento:c.procVenc;
+        const d=daysDiff(iso);
+        if(d!==null&&d<0)cell.font={size:10,name:'Calibri',color:{argb:'FFDC2626'},bold:true};
+        else if(d!==null&&d<=30)cell.font={size:10,name:'Calibri',color:{argb:'FFD97706'},bold:true};
+      }
+    });
+    rn++;
+  });
+
+  // Logo
+  try{const logo=await _logoBuffer();if(logo){const imgId=workbook.addImage({buffer:logo.buf,extension:logo.ext});ws.addImage(imgId,{tl:{col:0.12,row:0.08},ext:{width:158,height:34}});}}catch(e){}
+
+  const buf=await workbook.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`certificados_ecac_${today()}.xlsx`;a.click();
+  URL.revokeObjectURL(url);
+  toast(`${data.length} registro(s) exportado(s) para Excel.`);
+}
+
 // ==================== EXPORTAR IMAGEM ====================
 
 // ==================== IMPORT CLIENTES ====================
@@ -1789,11 +2411,7 @@ renderPainel();
 atualizarLogo();
 refreshIcons();
 initAutoSave();
-gateCheckSession();
-(function(){
-  const el=document.getElementById('login-gate-logo');
-  if(el)el.src=localStorage.getItem('triagem_logo')||LUCRALIZE_LOGO;
-})();
+ctBoot();
 
 </script>
 </body>

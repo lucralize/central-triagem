@@ -417,6 +417,22 @@ tr.row-success:hover { background: #dcfce7 !important; }
 .al-time{font-size:11px;color:var(--gray-400);margin-top:4px;}
 .al-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px;color:var(--gray-400);font-size:13px;}
 .al-empty svg{width:28px;height:28px;}
+
+/* ── NOVOS CONTRATOS ── */
+.ct-box{background:#fff;border:1px solid var(--gray-200);border-left:4px solid var(--brand-teal);border-radius:10px;margin-bottom:16px;overflow:hidden;}
+.ct-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;background:#f8fafc;border-bottom:1px solid var(--gray-200);flex-wrap:wrap;}
+.ct-title{font-size:13px;font-weight:700;color:var(--brand-navy);display:flex;align-items:center;gap:8px;}
+.ct-title svg{width:16px;height:16px;color:var(--brand-teal);}
+.ct-list{max-height:300px;overflow-y:auto;}
+.ct-item{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--gray-100);}
+.ct-item:last-child{border-bottom:none;}
+.ct-name{font-weight:700;font-size:13.5px;color:var(--brand-navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ct-sub{font-size:12px;color:var(--brand-slate);margin-top:2px;}
+.ct-msg{padding:16px;font-size:12.5px;color:var(--brand-slate);}
+.ct-err{color:#c81e3a;background:#fff5f6;}
+
+.ct-box-err{border-left-color:var(--brand-red);}
+.ct-box-warn{border-left-color:#d97706;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -745,8 +761,9 @@ tr.row-success:hover { background: #dcfce7 !important; }
           <input type="text" class="form-control" id="ob-search" placeholder="Buscar cliente por nome ou e-mail..." oninput="obRenderList()">
         </div>
         <button class="btn btn-outline" style="margin-left:8px;" onclick="obOpenPage()"><i data-lucide="refresh-cw"></i> Atualizar</button>
-        <button class="btn btn-primary" style="margin-left:8px;" onclick="obOpenNew()"><i data-lucide="user-plus"></i> Novo Cliente</button>
+        <button class="btn btn-primary" id="ob-new-btn" style="margin-left:8px;" onclick="obOpenNew()"><i data-lucide="user-plus"></i> Novo Cliente</button>
       </div>
+      <div id="ob-contracts"></div>
       <div class="ob-filters" id="ob-filters"></div>
       <div class="alert alert-warning" id="ob-error" style="display:none;margin-bottom:14px;font-size:12px;align-items:center;"></div>
       <div id="ob-list"></div>
@@ -2675,11 +2692,11 @@ function obFromRow(v){
   if(raw.trim()){try{data=JSON.parse(raw);}catch(e){corrupt=true;}}
   return obNorm({id:s(0),divisao:s(1),resp:s(2),situacao:s(3),status:s(4),criadoEm:s(5),aberturaOk:s(6)==='Sim',aberturaOkEm:s(7),docsOk:s(8)==='Sim',
     collab:{A:{nome:s(9),email:s(10)},B:{nome:s(11),email:s(12)},C:{nome:s(13),email:s(14)}},
-    tel:s(15),email:s(16),comp:s(17),cond:s(18),obs:s(19),criadoPor:s(20),tasks:data.tasks||{},docs:data.docs||{},corrupt});
+    tel:s(15),email:s(16),comp:s(17),cond:s(18),obs:s(19),criadoPor:s(20),tasks:data.tasks||{},docs:data.docs||{},origem:data.origem||null,corrupt});
 }
 function obToRow(ob){
   obNorm(ob);
-  const json=JSON.stringify({v:1,tasks:ob.tasks,docs:ob.docs});
+  const json=JSON.stringify(Object.assign({v:1,tasks:ob.tasks,docs:ob.docs},ob.origem?{origem:ob.origem}:{}));
   if(json.length>60000)throw ctErr('Os dados deste cliente passaram do limite de tamanho da planilha.');
   const c=k=>(ob.collab&&ob.collab[k])||{nome:'',email:''};
   ob.status=obStatus(ob);
@@ -2763,12 +2780,16 @@ async function obCreate(d){
   const div=obDiv,cfg=OB_CFG[div],none={nome:'',email:''};
   const ob=obNorm({id:obNewId('o'),divisao:div,resp:d.resp,situacao:d.situacao,status:'Pendente',criadoEm:obNow(),aberturaOk:false,aberturaOkEm:'',docsOk:false,
     collab:{A:d.collabA||none,B:d.collabB||none,C:d.collabC||none},
-    tel:d.tel,email:d.email,comp:d.comp,cond:d.cond,obs:d.obs,criadoPor:SESSION.nome,tasks:{},docs:{}});
-  const user=SESSION.nome,msgs=['Cliente cadastrado no onboarding.'];
+    tel:d.tel,email:d.email,comp:d.comp,cond:d.cond,obs:d.obs,criadoPor:SESSION.nome,tasks:{},docs:{},origem:d.origem||null});
+  const user=SESSION.nome,msgs=[d.origemMsg||'Cliente cadastrado no onboarding.'];
   cfg.groups.forEach(g=>{const c=ob.collab[g.key];if(c&&c.nome)msgs.push(`Colaborador (${g.short}): "—" → "${c.nome}"`);});
   let idx=null,histErr=null;
   await ctEnqueue(()=>ctWithSession(async(sid,wb)=>{
     const h={'workbook-session-id':sid};
+    if(d.origem){
+      const rows=await obReadTable(OB_T,OB_COLS,sid);
+      if(rows.some(r=>obOrigemKey(r.v)===d.origem.key))throw ctErr('Este contrato já foi iniciado no onboarding por outra pessoa. Atualize a lista.');
+    }
     const r=await spGraph('POST',`${wb}/tables/${OB_T}/rows/add`,{index:null,values:[obToRow(ob)]},h);
     idx=(r&&r.index!=null)?r.index:null;
     try{await spGraph('POST',`${wb}/tables/${OB_H}/rows/add`,{index:null,values:msgs.map(m=>[obNewId('h'),ob.id,ob.criadoEm,user,m])},h);}
@@ -2804,17 +2825,21 @@ function showTeamsToast(msg){
 
 // ── lista ──
 function obCollabOptions(){return ctUsersToShow().filter(u=>u.ativo==='Sim').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));}
-function obRenderAll(){obRenderStats();obRenderFilters();obRenderList();obUpdateBadges();alRefresh();refreshIcons();}
+function obRenderAll(){
+  // se o cliente do painel aberto deixou de estar visível (removido da Central por outra pessoa), fecha o painel
+  if(obCur){const o=obFind(obCur);if(!o||!obVisible(o))obClosePanel();}
+  obRenderStats();obRenderFilters();obRenderList();obRenderContracts();obUpdateBadges();alRefresh();refreshIcons();
+}
 function obUpdateBadges(){
-  setBadge('badge-ob-tech',OB.Tech.filter(o=>obStatus(o)!=='Concluído').length);
-  setBadge('badge-ob-cont',OB.Contabilidade.filter(o=>obStatus(o)!=='Concluído').length);
+  setBadge('badge-ob-tech',obList('Tech').filter(o=>obStatus(o)!=='Concluído').length);
+  setBadge('badge-ob-cont',obList('Contabilidade').filter(o=>obStatus(o)!=='Concluído').length);
 }
 function obSwitch(div){
   if(obDiv!==div){obClosePanel();obDiv=div;obFilter='todos';const q=document.getElementById('ob-search');if(q)q.value='';}
   return obOpenPage();
 }
 function obRenderStats(){
-  const l=OB[obDiv],n=s=>l.filter(o=>obStatus(o)===s).length;
+  const l=obList(obDiv),n=s=>l.filter(o=>obStatus(o)===s).length;
   const card=(cls,ic,v,lab)=>`<div class="stat-card"><div class="stat-icon ${cls}"><i data-lucide="${ic}"></i></div><div><div class="stat-value">${v}</div><div class="stat-label">${lab}</div></div></div>`;
   document.getElementById('ob-stats').innerHTML=card('yellow','clock',n('Pendente'),'Pendente')+card('blue','loader',n('Em Andamento'),'Em Andamento')+card('green','circle-check',n('Concluído'),'Concluído')+card('gray','users',l.length,'Total');
 }
@@ -2827,7 +2852,7 @@ function obRenderList(){
   const err=document.getElementById('ob-error');
   err.style.display=obError?'flex':'none';
   err.innerHTML=obError?'<i data-lucide="triangle-alert"></i><span>'+ctEsc(obError)+'</span>':'';
-  let l=OB[obDiv].slice();
+  let l=obList(obDiv).slice();
   if(obFilter!=='todos')l=l.filter(o=>obStatus(o)===obFilter);
   if(q)l=l.filter(o=>o.resp.toLowerCase().includes(q)||o.email.toLowerCase().includes(q));
   l.sort((a,b)=>String(b.criadoEm).localeCompare(String(a.criadoEm)));
@@ -2857,11 +2882,12 @@ async function obOpenPage(){
   try{await obLoadAll();}catch(e){obError=ctFriendly(e);}
   obRenderAll();
   if(obCur&&obFind(obCur))obRenderPanel();
+  obLoadContracts();
 }
 
 // ── painel lateral ──
 function obOpenPanel(id){
-  const o=obFind(id);if(!o)return;
+  const o=obFind(id);if(!o||!obVisible(o))return;
   obCur=id;obTab=0;
   document.getElementById('ob-overlay').classList.add('open');
   document.getElementById('ob-panel').classList.add('open');
@@ -2874,7 +2900,7 @@ function obClosePanel(){
   obRenderList();
 }
 function obRenderPanel(){
-  const o=obFind(obCur);if(!o){obClosePanel();return;}
+  const o=obFind(obCur);if(!o||!obVisible(o)){obClosePanel();return;}
   document.getElementById('ob-pnl-name').textContent=o.resp;
   document.getElementById('ob-pnl-sub').textContent=`Lucralize ${o.divisao} · ${obFmtComp(o.comp)} · ${o.situacao}`;
   const tabs=['Visão Geral','Implantação','Documentos','Histórico'];
@@ -2922,6 +2948,7 @@ function obTabGeral(o){
         ${isConst&&!o.aberturaOk?'<button class="btn btn-secondary btn-sm" data-act="abertura"><i data-lucide="building-2"></i> Marcar abertura concluída</button>':''}
         <button class="btn btn-outline btn-sm" data-act="goto-tab" data-n="1"><i data-lucide="list-checks"></i> Implantação</button>
         <button class="btn btn-outline btn-sm" data-act="goto-tab" data-n="2"><i data-lucide="file-check"></i> Documentos</button>
+        ${o.origem?'<button class="btn btn-outline btn-sm" data-act="remove-central"><i data-lucide="archive"></i> Remover da Central</button>':''}
       </div></div>`;
 }
 function obAberturaBox(o){
@@ -3094,6 +3121,175 @@ async function obSaveNew(){
   finally{btn.disabled=false;}
 }
 
+
+// ── contratos assinados: a lista de contratos decide quem aparece na Central ──
+// Aparece: contrato assinado = Sim E coluna "Central Triagem" = "Não" (só o "Não" escrito; vazio não conta).
+// Ao entrar, o cadastro é criado sozinho na planilha. Marcar "Sim" em "Central Triagem" tira o cliente da Central.
+const OB_SRC={
+  Contabilidade:{sitePath:null,urlName:'Contrato%20de%20Prestao%20de%20Servios%20Contbeis%20e%20Tributri',label:'Contrato de Prestação de Serviços Contábeis e Tributários'},
+  Tech:{sitePath:'LUCRALIZETECH',urlName:'Termo%20de%20Aceite%20Digital',label:'Termo de Aceite Digital',
+    // no Tech o "contrato assinado" é o aceite do termo: aceita também esses nomes
+    fields:{assinado:{exact:['contrato assinado','termo assinado','termo de aceite assinado','aceite assinado','termo aceito','aceite do termo','aceito','assinado','assinatura','aceite'],contains:['assinado','aceito']}}}
+};
+const OB_SRC_FIELDS={
+  assinado:{exact:['contrato assinado','assinado','assinatura'],contains:['assinado']},
+  central:{exact:['central triagem','centraltriagem','central de triagem','na central triagem'],contains:['central triagem','centraltriagem']},
+  empresa:{exact:['empresa','razao social','nome da empresa','cliente','nome do cliente']},
+  resp:{exact:['responsavel','nome do responsavel','nome responsavel']},
+  tel:{exact:['telefone','celular','whatsapp','fone']},
+  email:{exact:['e mail','email']},
+  cond:{exact:['condicao de venda','condicao comercial','condicao']},
+  comp:{exact:['competencia','competencia inicial','inicio da competencia']},
+  origem:{exact:['origem']},
+  situacao:{exact:['situacao atual','situacao']}
+};
+const OB_IMPORT_MAX=25;
+function obCtNew(){return{error:'',colsInfo:'',loading:false,loaded:false,visibleKeys:new Set(),byKey:{},pending:null,quiet:false};}
+let obCt={Tech:obCtNew(),Contabilidade:obCtNew()},obSrcCache={};
+function obNormTxt(s){return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+function obFindCol(cols,def){
+  const n=cols.map(c=>({c,n:obNormTxt(c.displayName)}));
+  for(const k of def.exact){const e=n.find(x=>x.n===k);if(e)return e.c;}
+  for(const k of (def.contains||[])){const e=n.find(x=>x.n.includes(k));if(e)return e.c;}
+  return null;
+}
+function obOrigemKey(v){try{const j=JSON.parse(String(v[21]==null?'':v[21])+String(v[22]==null?'':v[22]));return(j&&j.origem&&j.origem.key)||null;}catch(e){return null;}}
+function obTruthy(v){return v===true||/^(sim|yes|true|1|assinado)$/i.test(String(v==null?'':v).trim());}
+function obIsNao(v){return v===false||obNormTxt(v)==='nao';}
+function obNormSit(v){const n=obNormTxt(v);return n.includes('constitu')?'Constituição':'Transferência';}
+function obCompFrom(v){const m=String(v||'').match(/^(\d{4})-(\d{2})/);return m?`${m[1]}-${m[2]}`:'';}
+function obTsFromIso(iso){const d=new Date(iso);if(isNaN(d))return obNow();const p=x=>String(x).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+// cadastros com contrato de origem só aparecem enquanto a lista de contratos os mantém visíveis
+// (se a lista não puder ser lida, mostra tudo e avisa: melhor mostrar de mais do que esconder trabalho)
+function obVisible(o){
+  if(!o.origem)return true;
+  const st=obCt[o.divisao];
+  if(!st||!st.loaded||st.error)return true;
+  return st.visibleKeys.has(o.origem.key);
+}
+function obList(div){return OB[div].filter(obVisible);}
+async function obGraphAll(path,headers){
+  let out=[],url=path,g=0;
+  while(url&&g++<40){const r=await spGraph('GET',url,null,headers);out=out.concat(r.value||[]);url=r['@odata.nextLink']?r['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0',''):null;}
+  return out;
+}
+async function obSrcResolve(div){
+  if(obSrcCache[div])return obSrcCache[div];
+  const src=OB_SRC[div];
+  const site=await spGraph('GET',`/sites/${SP_CONFIG.hostname}${src.sitePath?':/sites/'+src.sitePath:''}?$select=id`);
+  const lists=await obGraphAll(`/sites/${site.id}/lists?$select=id,displayName,webUrl&$top=200`);
+  const want=decodeURIComponent(src.urlName).toLowerCase();
+  const list=lists.find(l=>decodeURIComponent(l.webUrl).toLowerCase().endsWith('/lists/'+want));
+  if(!list)throw ctErr(`Lista de contratos não encontrada (${src.label}). Confira se o seu usuário tem acesso a ela.`);
+  const cols=(await obGraphAll(`/sites/${site.id}/lists/${list.id}/columns`)).filter(c=>!c.hidden&&!c.readOnly);
+  const map={};
+  const defs=Object.assign({},OB_SRC_FIELDS,src.fields||{});
+  Object.keys(defs).forEach(k=>{map[k]=obFindCol(cols,defs[k]);});
+  obSrcCache[div]={siteId:site.id,listId:list.id,cols,map};
+  return obSrcCache[div];
+}
+function obColKey(c){return c?(c.lookup?c.name+'LookupId':c.name):null;}
+function obSrcErr(msg,m){const e=ctErr(msg);e.colsInfo='Colunas encontradas: '+m.cols.map(c=>c.displayName).join(', ');return e;}
+async function obLoadContracts(div,quiet){
+  div=div||obDiv;const st=obCt[div],src=OB_SRC[div];
+  if(!src){st.loaded=false;st.error='';st.pending=null;obRenderContracts();return;}
+  st.error='';st.colsInfo='';st.pending=null;st.loading=true;st.quiet=!!quiet;
+  if(!quiet)obRenderContracts();
+  try{
+    const m=await obSrcResolve(div);
+    if(!m.map.assinado)throw obSrcErr('Não encontrei a coluna de contrato assinado (ou aceite do termo) na lista.',m);
+    if(!m.map.central)throw obSrcErr('Crie na lista de contratos a coluna "Central Triagem" (tipo Escolha: Não / Sim, valor padrão Não). Só entram na Central os contratos assinados com essa coluna em "Não".',m);
+    const keys=[...new Set(Object.values(m.map).map(obColKey).filter(Boolean))];
+    const all=await obGraphAll(`/sites/${m.siteId}/lists/${m.listId}/items?$expand=fields($select=${keys.join(',')})&$top=200`,{'Prefer':'HonorNonIndexedQueriesWarningMayFailRandomly'});
+    const f=(it,k)=>{const c=m.map[k];return c?it.fields[obColKey(c)]:undefined;};
+    const vis=all.filter(it=>it.fields&&obTruthy(f(it,'assinado'))&&obIsNao(f(it,'central')));
+    // colunas de pesquisa (ex.: Empresa apontando para outra lista): busca o texto do item apontado
+    const lk={};
+    for(const k of ['empresa','resp']){
+      const c=m.map[k];if(!c||!c.lookup)continue;
+      for(const it of vis){const id=it.fields[obColKey(c)];if(id==null)continue;const ck=c.lookup.listId+':'+id;
+        if(lk[ck]===undefined){try{const r=await spGraph('GET',`/sites/${m.siteId}/lists/${c.lookup.listId}/items/${id}?$expand=fields($select=Title)`);lk[ck]=(r.fields&&r.fields.Title)||'';}catch(e){lk[ck]='';}}}
+    }
+    const txt=(it,k)=>{const c=m.map[k];if(!c)return '';const v=it.fields[obColKey(c)];if(c.lookup)return lk[c.lookup.listId+':'+v]||'';return v==null?'':String(v).trim();};
+    const contratos=vis.map(it=>{
+      const resp=txt(it,'resp'),emp=txt(it,'empresa'),sitOrig=txt(it,'situacao');
+      return{key:`${m.listId}:${it.id}`,itemId:it.id,nome:emp||resp||('Contrato #'+it.id),resp,tel:txt(it,'tel'),email:txt(it,'email'),cond:txt(it,'cond'),
+        comp:obCompFrom(txt(it,'comp')),origemTxt:txt(it,'origem'),situacao:obNormSit(sitOrig),assinadoEm:it.lastModifiedDateTime};
+    });
+    st.visibleKeys=new Set(contratos.map(c=>c.key));
+    st.byKey=Object.fromEntries(contratos.map(c=>[c.key,c]));
+    st.loaded=true;
+    const feitos=new Set(OB[div].map(o=>o.origem&&o.origem.key).filter(Boolean));
+    const novos=contratos.filter(c=>!feitos.has(c.key)).sort((x,y)=>String(x.assinadoEm).localeCompare(String(y.assinadoEm)));
+    if(novos.length>OB_IMPORT_MAX)st.pending=novos;
+    else if(novos.length)await obImportContracts(div,novos);
+  }catch(e){
+    console.error(e);st.loaded=false;st.visibleKeys=new Set();st.error=ctFriendly(e);st.colsInfo=e.colsInfo||'';
+  }finally{st.loading=false;obRenderAll();}
+}
+// cria, de uma vez e dentro de uma sessão, os cadastros dos contratos que ainda não têm linha na planilha
+async function obImportContracts(div,list){
+  const none={nome:'',email:''};let criados=[];
+  await ctEnqueue(()=>ctWithSession(async(sid,wb)=>{
+    const h={'workbook-session-id':sid};
+    const rows=await obReadTable(OB_T,OB_COLS,sid);
+    const have=new Set(rows.map(r=>obOrigemKey(r.v)).filter(Boolean));
+    const todo=list.filter(c=>!have.has(c.key));   // outra pessoa pode ter importado enquanto isso
+    if(!todo.length)return;
+    const obs=todo.map(c=>obNorm({id:obNewId('o'),divisao:div,resp:c.nome,situacao:c.situacao,status:'Pendente',criadoEm:obTsFromIso(c.assinadoEm),aberturaOk:false,aberturaOkEm:'',docsOk:false,
+      collab:{A:none,B:none,C:none},tel:c.tel,email:c.email,comp:c.comp,cond:c.cond,obs:'',criadoPor:'Contrato assinado',tasks:{},docs:{},
+      origem:{key:c.key,lista:OB_SRC[div].label,item:c.itemId}}));
+    const r=await spGraph('POST',`${wb}/tables/${OB_T}/rows/add`,{index:null,values:obs.map(obToRow)},h);
+    const first=(r&&r.index!=null)?r.index:null;
+    obs.forEach((o,i)=>{o._idx=first!=null?first+i:null;});
+    try{await spGraph('POST',`${wb}/tables/${OB_H}/rows/add`,{index:null,values:obs.map((o,i)=>[obNewId('h'),o.id,o.criadoEm,'Central de Triagem',`Onboarding iniciado automaticamente a partir do contrato assinado (item ${todo[i].itemId} da lista de contratos${todo[i].origemTxt?'; origem: '+todo[i].origemTxt:''}).`])},h);}
+    catch(e){/* o histórico é complementar: o cadastro já foi criado */}
+    criados=obs;
+  }));
+  criados.forEach(o=>{if(!OB[div].some(x=>x.id===o.id))OB[div].push(o);obRecent[o.id]={ts:Date.now(),ob:o};});
+  try{await obLoadAll();}catch(e){/* mantém o que já está em memória */}
+  if(criados.length)toast(`${criados.length} contrato(s) assinado(s) entraram no ${OB_CFG[div].label}.`);
+  return criados.length;
+}
+async function obConfirmImport(){
+  const st=obCt[obDiv],list=st.pending;if(!list||obBusy)return;
+  obBusy=true;
+  try{st.pending=null;await obImportContracts(obDiv,list);}
+  catch(e){console.error(e);toast(ctFriendly(e),'error');st.pending=list;}
+  finally{obBusy=false;obRenderAll();}
+}
+function obRenderContracts(){
+  const box=document.getElementById('ob-contracts');if(!box)return;
+  const st=obCt[obDiv];let html='';
+  if(st.loading&&!st.quiet)html='<div class="ct-box"><div class="ct-msg">Sincronizando com a lista de contratos...</div></div>';
+  else if(st.error)html=`<div class="ct-box ct-box-err"><div class="ct-msg ct-err"><b>Lista de contratos:</b> ${ctEsc(st.error)}${st.colsInfo?`<br><span style="font-size:11px;">${ctEsc(st.colsInfo)}</span>`:''}</div><div style="padding:0 16px 12px;"><button class="btn btn-outline btn-sm" data-act="ct-refresh"><i data-lucide="refresh-cw"></i> Tentar de novo</button></div></div>`;
+  else if(st.pending&&st.pending.length)html=`<div class="ct-box ct-box-warn"><div class="ct-msg"><b>${st.pending.length} contratos assinados</b> aguardam entrada na Central. Como são muitos de uma vez, confirme antes de criar os cadastros.</div><div style="padding:0 16px 12px;"><button class="btn btn-primary btn-sm" data-act="ct-import"><i data-lucide="download"></i> Importar ${st.pending.length} contratos</button></div></div>`;
+  box.innerHTML=html;
+  const nb=document.getElementById('ob-new-btn');if(nb)nb.style.display=(OB_SRC[obDiv]&&!st.error)?'none':'';
+  refreshIcons();
+}
+async function obActRemoveCentral(){
+  const o=obFind(obCur);if(!o||!o.origem)return;
+  const div=o.divisao,st=obCt[div],c=st.byKey[o.origem.key];
+  if(!c){toast('Contrato de origem não encontrado na lista. Atualize a lista.','error');return;}
+  const msg=obStatus(o)==='Concluído'?`Remover "${o.resp}" da Central de Triagem? A coluna "Central Triagem" do contrato passa para "Sim". Os dados do onboarding continuam guardados na planilha.`
+    :`O onboarding de "${o.resp}" ainda NÃO está concluído. Remover mesmo assim da Central de Triagem?`;
+  if(!confirm(msg))return;
+  return obRun(async()=>{
+    const m=await obSrcResolve(div);
+    try{await spGraph('PATCH',`/sites/${m.siteId}/lists/${m.listId}/items/${c.itemId}/fields`,{[m.map.central.name]:m.map.central.boolean?true:'Sim'});}
+    catch(e){if(e.status===401||e.status===403)throw ctErr('Sem permissão para editar a lista de contratos. Peça edição a um administrador ou marque "Sim" na coluna "Central Triagem" direto no SharePoint.');throw e;}
+    st.visibleKeys.delete(o.origem.key);
+    try{await obUpdate(o.id,()=>['Removido da Central de Triagem (coluna "Central Triagem" marcada como Sim na lista de contratos).']);}catch(e){/* o histórico é complementar */}
+    toast('Cliente removido da Central de Triagem.');
+  });
+}
+document.getElementById('ob-contracts').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-act]');if(!b)return;
+  if(b.dataset.act==='ct-import')obConfirmImport();
+  else if(b.dataset.act==='ct-refresh'){obSrcCache={};obLoadAll().catch(()=>{}).then(()=>obLoadContracts(obDiv));}
+});
+
 // ── eventos (delegação) ──
 document.getElementById('ob-list').addEventListener('click',ev=>{const c=ev.target.closest('.ob-card');if(c)obOpenPanel(c.dataset.id);});
 document.getElementById('ob-filters').addEventListener('click',ev=>{const b=ev.target.closest('.ob-filter');if(!b)return;obFilter=b.dataset.f;obRenderFilters();obRenderList();});
@@ -3106,6 +3302,7 @@ document.getElementById('ob-pnl-body').addEventListener('click',ev=>{
   else if(a==='doc-obs')obActDocObs(b.dataset.d);
   else if(a==='obs-save')obActObsGeral();
   else if(a==='abertura')obActAbertura();
+  else if(a==='remove-central')obActRemoveCentral();
   else if(a==='goto-tab'){obTab=+b.dataset.n;obRenderPanel();}
 });
 document.getElementById('ob-pnl-body').addEventListener('change',ev=>{
@@ -3153,7 +3350,7 @@ function alCompute(){
   ['Tech','Contabilidade'].forEach(div=>{
     const page=div==='Tech'?'ob-tech':'ob-cont';
     if(!ctCanAccess(page))return;
-    (OB[div]||[]).forEach(o=>{
+    (obList(div)||[]).forEach(o=>{
       if(o.corrupt)return;
       const prog=obProg(o),isConst=o.situacao==='Constituição',resp=alRespTxt(o),link={page,id:o.id};
       const ref=isConst?(o.aberturaOk?o.aberturaOkEm:null):o.criadoEm;
@@ -3258,6 +3455,7 @@ async function alPoll(){
   if(!SESSION||obBusy||document.hidden)return;
   try{
     await obLoadAll();
+    for(const d of ['Tech','Contabilidade']){if(OB_SRC[d]&&ctCanAccess(d==='Tech'?'ob-tech':'ob-cont'))await obLoadContracts(d,true);}
     alRefresh();obUpdateBadges();
     const ativa=document.querySelector('.page.active');
     if(ativa&&ativa.id==='page-ob'&&!obBusy){obRenderStats();obRenderList();}
@@ -3269,6 +3467,10 @@ async function obBootAlerts(){
   document.getElementById('bell-wrap').style.display=pode?'':'none';
   if(!pode)return;
   try{await obLoadAll();}catch(e){console.warn('Alertas: não foi possível carregar os onboardings —',e.message);}
+  for(const d of ['Tech','Contabilidade']){
+    if(!SESSION)return;
+    if(OB_SRC[d]&&ctCanAccess(d==='Tech'?'ob-tech':'ob-cont')){try{await obLoadContracts(d,true);}catch(e){console.warn('Contratos:',e.message);}}
+  }
   if(!SESSION)return;   // saiu enquanto carregava
   alRefresh();obUpdateBadges();refreshIcons();
   if(alTimer)clearInterval(alTimer);

@@ -2814,6 +2814,19 @@ async function obFetchHist(id){
 }
 
 // ── notificação simulada do Teams (o envio real é do fluxo do Power Automate — Fase 8) ──
+// Fluxo 02 (Power Automate, gatilho HTTP): o portal envia SÓ {id, grupo}. O fluxo lê o cadastro na planilha e monta
+// a mensagem sozinho, então quem tiver o endereço não consegue injetar texto. Vazio = modo simulado (só toast na tela).
+const CT_FLOW_ASSIGN_URL='';   // ← endereço HTTP do fluxo "Designação → chat no Teams" (colar aqui)
+async function obNotifyAssign(o,gk,nome,textoSimulado){
+  if(!CT_FLOW_ASSIGN_URL){showTeamsToast(textoSimulado);return;}
+  try{
+    // "text/plain" + no-cors = requisição simples (sem preflight): chega ao fluxo mesmo que o CORS dele não esteja configurado
+    await fetch(CT_FLOW_ASSIGN_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({id:o.id,grupo:gk})});
+    showTeamsToast(`Teams: aviso enviado a @${nome} sobre o cliente ${o.resp}. O chat chega em instantes.`);
+  }catch(e){
+    console.error(e);toast('A designação foi salva, mas não consegui acionar o aviso do Teams.','warning');
+  }
+}
 function showTeamsToast(msg){
   const box=document.getElementById('toast-container');if(!box)return;
   const t=document.createElement('div');
@@ -3072,7 +3085,7 @@ function obActCollab(gk,email){
       ob.collab[gk]=novo;changed=true;
       return [`Colaborador (${g.short}): "${cur.nome||'—'}" → "${novo.nome||'—'}"`];
     });
-    if(changed&&novo.nome)showTeamsToast(`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pelo cliente ${o.resp} (${o.divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);
+    if(changed&&novo.nome)await obNotifyAssign(o,gk,novo.nome,`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pelo cliente ${o.resp} (${o.divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);
   });
 }
 function obActAbertura(){
@@ -3115,7 +3128,7 @@ async function obSaveNew(){
   try{
     const ob=await obCreate(d);
     closeModal('modal-ob-new');obRenderAll();toast('Cliente cadastrado no onboarding!');
-    OB_CFG[ob.divisao].groups.forEach(gr=>{const c=ob.collab[gr.key];if(c&&c.nome)showTeamsToast(`(simulado) Chat → @${c.nome}: Você foi designado(a) como responsável (${gr.short}) pelo cliente ${ob.resp} (${ob.divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);});
+    for(const gr of OB_CFG[ob.divisao].groups){const c=ob.collab[gr.key];if(c&&c.nome)await obNotifyAssign(ob,gr.key,c.nome,`(simulado) Chat → @${c.nome}: Você foi designado(a) como responsável (${gr.short}) pelo cliente ${ob.resp} (${ob.divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);}
     obOpenPanel(ob.id);
   }catch(e){console.error(e);err.textContent=ctFriendly(e);err.style.display='flex';}
   finally{btn.disabled=false;}

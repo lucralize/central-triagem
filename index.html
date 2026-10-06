@@ -433,6 +433,10 @@ tr.row-success:hover { background: #dcfce7 !important; }
       <span class="icon"><i data-lucide="rocket"></i></span> Onboarding Tech
       <span class="nav-badge" id="badge-ob-tech" style="display:none"></span>
     </div>
+    <div class="nav-item" onclick="goTo('ob-cont')" id="nav-ob-cont" style="display:none">
+      <span class="icon"><i data-lucide="calculator"></i></span> Onboarding Contabilidade
+      <span class="nav-badge" id="badge-ob-cont" style="display:none"></span>
+    </div>
     <div class="nav-item" onclick="goTo('certificados')" id="nav-certificados">
       <span class="icon"><i data-lucide="shield-check"></i></span> Certificados / eCac
       <span class="nav-badge" id="badge-certs" style="display:none"></span>
@@ -697,8 +701,8 @@ tr.row-success:hover { background: #dcfce7 !important; }
 
 
 
-    <!-- ==================== ONBOARDING TECH ==================== -->
-    <div class="page" id="page-ob-tech">
+    <!-- ==================== ONBOARDING (Tech e Contabilidade) ==================== -->
+    <div class="page" id="page-ob">
       <div class="grid-4" id="ob-stats" style="margin-bottom:16px;"></div>
       <div class="flex-between mb-16">
         <div class="search-bar" style="flex:1;margin-bottom:0;">
@@ -829,7 +833,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
 <div class="modal-overlay" id="modal-ob-new">
   <div class="modal" style="max-width:560px;">
     <div class="modal-header">
-      <h3>Novo Cliente — Onboarding Tech</h3>
+      <h3 id="ob-n-title">Novo Cliente — Onboarding Tech</h3>
       <button class="modal-close" onclick="closeModal('modal-ob-new')">✕</button>
     </div>
     <div class="modal-body">
@@ -844,8 +848,8 @@ tr.row-success:hover { background: #dcfce7 !important; }
       </div>
       <div class="form-group"><label>Condição comercial</label><input class="form-control" id="ob-n-cond" type="text"></div>
       <div class="form-row">
-        <div class="form-group"><label>Responsável OneFlow + Reunião</label><select class="form-control" id="ob-n-ca"></select></div>
-        <div class="form-group"><label>Responsável Cadastros + Docs</label><select class="form-control" id="ob-n-cb"></select></div>
+        <div class="form-group"><label id="ob-n-ca-label">Responsável OneFlow + Reunião</label><select class="form-control" id="ob-n-ca"></select></div>
+        <div class="form-group" id="ob-n-cb-wrap"><label>Responsável Cadastros + Docs</label><select class="form-control" id="ob-n-cb"></select></div>
       </div>
       <div class="form-group"><label>Observação</label><textarea class="form-control" id="ob-n-obs" rows="2"></textarea></div>
       <div class="alert alert-danger" id="ob-n-error" style="display:none;font-size:12px;align-items:center;"></div>
@@ -1286,7 +1290,7 @@ const CT_USERS_FILE={
 };
 const CT_TIPOS=['Administrador','Colaborador'];
 const CT_MODULES=['Onboarding Tech','Onboarding Contabilidade','Certificados / eCac','Saída de Clientes','Suspensão / Cancelamento','Usuários'];
-const CT_PAGE_MODULE={'ob-tech':'Onboarding Tech',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspensão / Cancelamento',usuarios:'Usuários'};
+const CT_PAGE_MODULE={'ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspensão / Cancelamento',usuarios:'Usuários'};
 const CT_LOGOUT_FLAG='ct_logged_out';
 const CT_RECENT_MS=5*60*1000;
 let SESSION=null,CT_USERS=[],ctUsersError='',ctFile=null,ctQueue=Promise.resolve(),ctRecent={},ctEditing=null;
@@ -1438,7 +1442,7 @@ function ctLogout(){
   if(!confirm('Deseja sair do portal?'))return;
   localStorage.setItem(CT_LOGOUT_FLAG,'1');
   SESSION=null;_spToken=null;CT_USERS=[];ctFile=null;ctUsersError='';ctRecent={};
-  OB={Tech:[]};obRecent={};obHist={};obHistLocal={};obCur=null;obError='';
+  OB={Tech:[],Contabilidade:[]};obRecent={};obHist={};obHistLocal={};obCur=null;obError='';
   document.getElementById('ob-panel').classList.remove('open');document.getElementById('ob-overlay').classList.remove('open');
   _clientStatusCache=[];_saidaCache=[];_checklistCache=[];
   document.getElementById('header-user-chip').style.display='none';
@@ -1919,8 +1923,8 @@ function dbSave(k,item){
 function dbDelete(k,id){dbSet(k,dbGet(k).filter(i=>i.id!==id));}
 
 // ==================== NAVIGATION ====================
-const pages={painel:'Painel Geral',documentos:'Recebimento de Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento',usuarios:'Usuários','ob-tech':'Onboarding Tech'};
-const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Checklist de recebimento por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento',usuarios:'Cadastro e permissões de acesso','ob-tech':'Clientes em implantação na Lucralize Tech'};
+const pages={painel:'Painel Geral',documentos:'Recebimento de Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento',usuarios:'Usuários','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade'};
+const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Checklist de recebimento por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento',usuarios:'Cadastro e permissões de acesso','ob-tech':'Clientes em implantação na Lucralize Tech','ob-cont':'Clientes em implantação na Lucralize Contabilidade'};
 let currentPage='painel', currentEditId=null, alertaCertId=null, alertaTipo=null;
 
 function refreshIcons(){ try{ if(window.lucide&&lucide.createIcons)lucide.createIcons(); }catch(e){ console.warn('Lucide:',e); } }
@@ -1928,14 +1932,14 @@ function goTo(page) {
   if(!ctCanAccess(page)){ toast('Você não tem acesso a este módulo.','error'); return; }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const pg=document.getElementById('page-'+page);
+  const pg=document.getElementById('page-'+(page==='ob-tech'||page==='ob-cont'?'ob':page));
   const nv=document.getElementById('nav-'+page);
   if(pg) pg.classList.add('active');
   if(nv) nv.classList.add('active');
   document.getElementById('page-title').textContent=pages[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   currentPage=page;
-  const fns={painel:renderPainel,documentos:renderDocsTable,certificados:renderCertsTable,saida:renderSaidaTable,suspensos:renderSuspTable,usuarios:ctOpenUsersPage,'ob-tech':obOpenPage};
+  const fns={painel:renderPainel,documentos:renderDocsTable,certificados:renderCertsTable,saida:renderSaidaTable,suspensos:renderSuspTable,usuarios:ctOpenUsersPage,'ob-tech':()=>obSwitch('Tech'),'ob-cont':()=>obSwitch('Contabilidade')};
   if(fns[page]) fns[page]();
   if(page==='certificados') setTimeout(verificarDispatchAutomatico,400);
   refreshIcons();
@@ -1953,7 +1957,7 @@ function updateBadges(){
   setBadge('badge-certs',certs.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d>=0&&d<=30;}).length);
   setBadge('badge-saida',_saidaCache.length);
   setBadge('badge-susp',_clientStatusCache.filter(c=>c.situacao==='SUSPENSO'||c.situacao==='EM CANCELAMENTO').length);
-  setBadge('badge-ob-tech',OB.Tech.filter(o=>obStatus(o)!=='Concluído').length);
+  obUpdateBadges();
 }
 function setBadge(id,n){const el=document.getElementById(id);if(!el)return;if(n>0){el.textContent=n;el.style.display='';}else el.style.display='none';}
 
@@ -2560,9 +2564,9 @@ const OB_CFG={
   Tech:{
     label:'Onboarding Tech',
     groups:[
-      {key:'A',role:'OneFlow + Agendamento + Reunião',tasks:[
+      {key:'A',short:'OneFlow',role:'OneFlow + Agendamento + Reunião',tasks:[
         {id:'oneflow',name:'Cadastro OneFlow'},{id:'agenda',name:'Agendamento de Reunião'},{id:'reuniao',name:'Reunião de Onboarding'}]},
-      {key:'B',role:'Cadastros + Primeiro Contato + Docs',tasks:[
+      {key:'B',short:'Cadastros',role:'Cadastros + Primeiro Contato + Docs',tasks:[
         {id:'sharepoint',name:'Cadastro SharePoint'},{id:'acessorias',name:'Cadastro Acessórias'},{id:'w3',name:'Cadastro W3'},
         {id:'pasta',name:'Pasta de Triagem'},{id:'contato',name:'Primeiro Contato (informações iniciais)'},{id:'cobranca',name:'Cobrança de Docs e Acessos'}]}
     ],
@@ -2570,9 +2574,36 @@ const OB_CFG={
       {id:'cert',name:'Certificado Digital'},{id:'proc',name:'Procuração eCac'},{id:'portal',name:'Acesso Portal Nacional'},
       {id:'pref',name:'Acesso Prefeitura'},{id:'contrato',name:'Contrato Social e últimas alterações'},
       {id:'bal',name:'Último Balancete Encerrado'},{id:'empweb',name:'Login e Senha do Empregador Web (se houver funcionários)'}]
+  },
+  Contabilidade:{
+    label:'Onboarding Contabilidade',
+    groups:[
+      {key:'C',short:'Responsável',role:'Todos os cadastros + Reunião + Docs',tasks:[
+        {id:'dominio',name:'Cadastro Domínio'},{id:'sharepoint',name:'Cadastro SharePoint'},{id:'acessorias',name:'Cadastro Acessórias'},
+        {id:'w3',name:'Cadastro W3'},{id:'pasta',name:'Pasta de Triagem'},{id:'sieg',name:'Cadastro SIEG'},
+        {id:'reuniao',name:'Reunião de Onboarding'},{id:'cobranca',name:'Cobrança de Docs e Acessos'}]}
+    ],
+    sections:[
+      {name:'Societário',docs:[
+        {id:'cert_soc',name:'Certificado Digital e Procuração'},{id:'contrato_soc',name:'Contrato Social e últimas alterações'},
+        {id:'docs_socios',name:'Documentos pessoais dos sócios (RG ou CNH)'},{id:'alvara',name:'Alvará de localização e funcionamento (se aplicável)'}]},
+      {name:'Fiscal',docs:[
+        {id:'pref_fisc',name:'Login e senha no portal da prefeitura'},{id:'portal_fisc',name:'Login e senha do portal nacional ou nº recibo IRPF (2 anos)'},
+        {id:'estado_fisc',name:'Login e senha no portal do estado (se houver)'},{id:'inscricao',name:'Número de inscrição municipal e estadual'},
+        {id:'acessos',name:'Acessos (Simples Nacional, regularizar e outros)'},{id:'fat12',name:'Faturamento dos últimos 12 meses'},
+        {id:'irpj',name:'Memória de cálculo IRPJ e CSLL (se Lucro Real)'}]},
+      {name:'Contábil',docs:[
+        {id:'balancete',name:'Balanço, Balancete, DRE da última competência'},
+        {id:'imob',name:'Planilha de imobilizado (data aquisição, descrição, valor, conta, depreciação)'},
+        {id:'saldos',name:'Composição dos saldos das contas de Ativo e Passivo'},{id:'razao',name:'Razão geral em PDF e Excel'}]},
+      {name:'Pessoal',docs:[
+        {id:'ficha_reg',name:'Ficha de registro atualizada'},{id:'ficha_fin',name:'Ficha financeira atualizada'},
+        {id:'empweb_cont',name:'Login e senha do Empregador Web'},{id:'ferias',name:'Período aquisitivo de Férias'}]}
+    ]
   }
 };
-let OB={Tech:[]},obError='',obFilter='todos',obCur=null,obTab=0,obBusy=false,obRecent={},obHist={},obHistLocal={},obOpenSet=new Set();
+OB_CFG.Contabilidade.docs=OB_CFG.Contabilidade.sections.flatMap(sec=>sec.docs.map(d=>({id:d.id,name:d.name,section:sec.name})));
+let OB={Tech:[],Contabilidade:[]},obDiv='Tech',obError='',obFilter='todos',obCur=null,obTab=0,obBusy=false,obRecent={},obHist={},obHistLocal={},obOpenSet=new Set();
 
 // ── utilitários ──
 function obNewId(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
@@ -2580,7 +2611,8 @@ function obNow(){const n=new Date(),p=x=>String(x).padStart(2,'0');return `${n.g
 function obFmtTs(s){const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?/);return m?`${m[3]}/${m[2]}/${m[1]}${m[4]?' '+m[4]+':'+m[5]:''}`:(s||'—');}
 function obDaysSince(ts){const m=String(ts||'').match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return 0;const d=new Date(+m[1],+m[2]-1,+m[3]),n=new Date();return Math.floor((new Date(n.getFullYear(),n.getMonth(),n.getDate())-d)/86400000);}
 function obFmtComp(c){const m=String(c||'').match(/^(\d{4})-(\d{2})$/);if(!m)return c||'—';return['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][+m[2]-1]+'/'+m[1];}
-function obFind(id){return OB.Tech.find(o=>o.id===id)||null;}
+function obFind(id){return OB.Tech.find(o=>o.id===id)||OB.Contabilidade.find(o=>o.id===id)||null;}
+function obDocLabel(d){return (d.section?d.section+' · ':'')+d.name;}
 
 // ── modelo ──
 function obNorm(ob){
@@ -2633,7 +2665,7 @@ async function obReadTable(table,cols,sid){
 }
 async function obLoadAll(){
   const rows=await obReadTable(OB_T,OB_COLS);
-  const list={Tech:[]};
+  const list={Tech:[],Contabilidade:[]};
   rows.forEach(r=>{
     if(!String(r.v[0]==null?'':r.v[0]).trim())return;
     const o=obFromRow(r.v);o._idx=r.idx;
@@ -2680,8 +2712,8 @@ async function obUpdate(id,patch){
       catch(e){histErr=e;}
     }
   }));
-  const i=OB.Tech.findIndex(o=>o.id===id);
-  if(i>=0)OB.Tech[i]=saved;else OB.Tech.push(saved);
+  const dv=saved.divisao,i=OB[dv].findIndex(o=>o.id===id);
+  if(i>=0)OB[dv][i]=saved;else OB[dv].push(saved);
   obRecent[id]={ts:Date.now(),ob:saved};
   if(!histErr){
     const entries=hist.map(r=>({em:r[2],usuario:r[3],msg:r[4]}));
@@ -2691,12 +2723,12 @@ async function obUpdate(id,patch){
   return saved;
 }
 async function obCreate(d){
-  const ob=obNorm({id:obNewId('o'),divisao:'Tech',resp:d.resp,situacao:d.situacao,status:'Pendente',criadoEm:obNow(),aberturaOk:false,aberturaOkEm:'',docsOk:false,
-    collab:{A:d.collabA||{nome:'',email:''},B:d.collabB||{nome:'',email:''},C:{nome:'',email:''}},
+  const div=obDiv,cfg=OB_CFG[div],none={nome:'',email:''};
+  const ob=obNorm({id:obNewId('o'),divisao:div,resp:d.resp,situacao:d.situacao,status:'Pendente',criadoEm:obNow(),aberturaOk:false,aberturaOkEm:'',docsOk:false,
+    collab:{A:d.collabA||none,B:d.collabB||none,C:d.collabC||none},
     tel:d.tel,email:d.email,comp:d.comp,cond:d.cond,obs:d.obs,criadoPor:SESSION.nome,tasks:{},docs:{}});
   const user=SESSION.nome,msgs=['Cliente cadastrado no onboarding.'];
-  if(ob.collab.A.nome)msgs.push(`Colaborador (OneFlow): "—" → "${ob.collab.A.nome}"`);
-  if(ob.collab.B.nome)msgs.push(`Colaborador (Cadastros): "—" → "${ob.collab.B.nome}"`);
+  cfg.groups.forEach(g=>{const c=ob.collab[g.key];if(c&&c.nome)msgs.push(`Colaborador (${g.short}): "—" → "${c.nome}"`);});
   let idx=null,histErr=null;
   await ctEnqueue(()=>ctWithSession(async(sid,wb)=>{
     const h={'workbook-session-id':sid};
@@ -2706,7 +2738,7 @@ async function obCreate(d){
     catch(e){histErr=e;}
   }));
   ob._idx=idx;
-  OB.Tech.push(ob);
+  OB[div].push(ob);
   obRecent[ob.id]={ts:Date.now(),ob};
   if(!histErr){const es=msgs.map(m=>({em:ob.criadoEm,usuario:user,msg:m}));obHistLocal[ob.id]=es.map(e=>({t:Date.now(),e}));obHist[ob.id]=es.slice();}
   else toast('Cliente cadastrado, mas o histórico não pôde ser gravado.','warning');
@@ -2735,9 +2767,17 @@ function showTeamsToast(msg){
 
 // ── lista ──
 function obCollabOptions(){return ctUsersToShow().filter(u=>u.ativo==='Sim').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));}
-function obRenderAll(){obRenderStats();obRenderFilters();obRenderList();setBadge('badge-ob-tech',OB.Tech.filter(o=>obStatus(o)!=='Concluído').length);refreshIcons();}
+function obRenderAll(){obRenderStats();obRenderFilters();obRenderList();obUpdateBadges();refreshIcons();}
+function obUpdateBadges(){
+  setBadge('badge-ob-tech',OB.Tech.filter(o=>obStatus(o)!=='Concluído').length);
+  setBadge('badge-ob-cont',OB.Contabilidade.filter(o=>obStatus(o)!=='Concluído').length);
+}
+function obSwitch(div){
+  if(obDiv!==div){obClosePanel();obDiv=div;obFilter='todos';const q=document.getElementById('ob-search');if(q)q.value='';}
+  return obOpenPage();
+}
 function obRenderStats(){
-  const l=OB.Tech,n=s=>l.filter(o=>obStatus(o)===s).length;
+  const l=OB[obDiv],n=s=>l.filter(o=>obStatus(o)===s).length;
   const card=(cls,ic,v,lab)=>`<div class="stat-card"><div class="stat-icon ${cls}"><i data-lucide="${ic}"></i></div><div><div class="stat-value">${v}</div><div class="stat-label">${lab}</div></div></div>`;
   document.getElementById('ob-stats').innerHTML=card('yellow','clock',n('Pendente'),'Pendente')+card('blue','loader',n('Em Andamento'),'Em Andamento')+card('green','circle-check',n('Concluído'),'Concluído')+card('gray','users',l.length,'Total');
 }
@@ -2750,7 +2790,7 @@ function obRenderList(){
   const err=document.getElementById('ob-error');
   err.style.display=obError?'flex':'none';
   err.innerHTML=obError?'<i data-lucide="triangle-alert"></i><span>'+ctEsc(obError)+'</span>':'';
-  let l=OB.Tech.slice();
+  let l=OB[obDiv].slice();
   if(obFilter!=='todos')l=l.filter(o=>obStatus(o)===obFilter);
   if(q)l=l.filter(o=>o.resp.toLowerCase().includes(q)||o.email.toLowerCase().includes(q));
   l.sort((a,b)=>String(b.criadoEm).localeCompare(String(a.criadoEm)));
@@ -2799,7 +2839,7 @@ function obClosePanel(){
 function obRenderPanel(){
   const o=obFind(obCur);if(!o){obClosePanel();return;}
   document.getElementById('ob-pnl-name').textContent=o.resp;
-  document.getElementById('ob-pnl-sub').textContent=`Lucralize Tech · ${obFmtComp(o.comp)} · ${o.situacao}`;
+  document.getElementById('ob-pnl-sub').textContent=`Lucralize ${o.divisao} · ${obFmtComp(o.comp)} · ${o.situacao}`;
   const tabs=['Visão Geral','Implantação','Documentos','Histórico'];
   document.getElementById('ob-tabs').innerHTML=tabs.map((t,i)=>`<div class="ob-tab ${i===obTab?'active':''}" data-tab="${i}">${t}</div>`).join('');
   const body=document.getElementById('ob-pnl-body');
@@ -2878,20 +2918,25 @@ function obTabImpl(o){
       ${tasks.map((t,i)=>obTaskRow(o,g,t,g.tasks[i])).join('')}</div>`;
   }).join('');
 }
+function obDocRow(o,d){
+  const s=o.docs[d.id],did=`dd-${d.id}`,open=obOpenSet.has(did);
+  return `<div class="doc-row"><div style="display:flex;align-items:center;gap:10px;width:100%;">
+    <input type="checkbox" ${s.r?'checked':''} data-act="doc-toggle" data-d="${d.id}">
+    <div style="flex:1;"><div class="doc-lbl">${ctEsc(d.name)}</div></div>
+    <span class="badge ${s.r?'badge-success':'badge-warning'}">${s.r?'Recebido':'Pendente'}</span>
+    <button class="texpand ${s.o?'has':''}" data-act="toggle" data-t="${did}" title="Observação"><i data-lucide="message-square"></i></button></div>
+    <div class="tdetail ${open?'open':''}" id="${did}" style="width:100%;">
+      <textarea class="form-control" id="dobs-${d.id}" rows="2" placeholder="Observação sobre este documento...">${ctEsc(s.o)}</textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:6px;" data-act="doc-obs" data-d="${d.id}">Salvar</button></div></div>`;
+}
 function obTabDocs(o){
   const cfg=OB_CFG[o.divisao],rec=cfg.docs.filter(d=>o.docs[d.id].r).length;
-  return `<div class="cblock"><div class="cblock-hdr"><div style="flex:1;"><div class="cname">Documentos do cliente</div></div><div class="cprog">${rec}/${cfg.docs.length} recebidos</div></div>
-    ${cfg.docs.map(d=>{
-      const s=o.docs[d.id],did=`dd-${d.id}`,open=obOpenSet.has(did);
-      return `<div class="doc-row"><div style="display:flex;align-items:center;gap:10px;width:100%;">
-        <input type="checkbox" ${s.r?'checked':''} data-act="doc-toggle" data-d="${d.id}">
-        <div style="flex:1;"><div class="doc-lbl">${ctEsc(d.name)}</div></div>
-        <span class="badge ${s.r?'badge-success':'badge-warning'}">${s.r?'Recebido':'Pendente'}</span>
-        <button class="texpand ${s.o?'has':''}" data-act="toggle" data-t="${did}" title="Observação"><i data-lucide="message-square"></i></button></div>
-        <div class="tdetail ${open?'open':''}" id="${did}" style="width:100%;">
-          <textarea class="form-control" id="dobs-${d.id}" rows="2" placeholder="Observação sobre este documento...">${ctEsc(s.o)}</textarea>
-          <button class="btn btn-primary btn-sm" style="margin-top:6px;" data-act="doc-obs" data-d="${d.id}">Salvar</button></div></div>`;
-    }).join('')}</div>`;
+  const head=`<div class="cblock-hdr"><div style="flex:1;"><div class="cname">Documentos do cliente</div></div><div class="cprog">${rec}/${cfg.docs.length} recebidos</div></div>`;
+  if(!cfg.sections)return `<div class="cblock">${head}${cfg.docs.map(d=>obDocRow(o,d)).join('')}</div>`;
+  return `<div class="cblock">${head}</div>`+cfg.sections.map(sec=>{
+    const n=sec.docs.filter(d=>o.docs[d.id].r).length;
+    return `<div class="cblock"><div class="cblock-hdr"><div style="flex:1;"><div class="cname">${ctEsc(sec.name)}</div></div><div class="cprog">${n}/${sec.docs.length}</div></div>${sec.docs.map(d=>obDocRow(o,d)).join('')}</div>`;
+  }).join('');
 }
 async function obTabHist(o){
   const id=o.id;
@@ -2933,7 +2978,7 @@ function obActDocToggle(did,checked){
   const o=obFind(obCur);if(!o)return;
   return obRun(()=>obUpdate(o.id,(ob)=>{
     const d=ob.docs[did];if(d.r===checked)return [];
-    d.r=checked;return [`[${obDocDef(ob,did).name}] → ${checked?'Recebido':'Pendente'}`];
+    d.r=checked;return [`[${obDocLabel(obDocDef(ob,did))}] → ${checked?'Recebido':'Pendente'}`];
   }));
 }
 function obActDocObs(did){
@@ -2942,7 +2987,7 @@ function obActDocObs(did){
   obOpenSet.add(`dd-${did}`);
   return obRun(()=>obUpdate(o.id,(ob)=>{
     const d=ob.docs[did];if(d.o===val)return [];
-    d.o=val;return [`[Obs Doc] ${obDocDef(ob,did).name}: "${val}"`];
+    d.o=val;return [`[Obs Doc] ${obDocLabel(obDocDef(ob,did))}: "${val}"`];
   }));
 }
 function obActObsGeral(){
@@ -2961,9 +3006,9 @@ function obActCollab(gk,email){
       const cur=ob.collab[gk]||{nome:'',email:''};nomeAntigo=cur.nome;
       if(cur.nome===novo.nome&&cur.email===novo.email)return [];
       ob.collab[gk]=novo;changed=true;
-      return [`Colaborador (${g.role.split(' + ')[0]}): "${cur.nome||'—'}" → "${novo.nome||'—'}"`];
+      return [`Colaborador (${g.short}): "${cur.nome||'—'}" → "${novo.nome||'—'}"`];
     });
-    if(changed&&novo.nome)showTeamsToast(`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pelo cliente ${o.resp} (Tech). Acesse o Portal de Onboarding para iniciar o processo.`);
+    if(changed&&novo.nome)showTeamsToast(`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pelo cliente ${o.resp} (${o.divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);
   });
 }
 function obActAbertura(){
@@ -2984,24 +3029,29 @@ function obActAbertura(){
 
 // ── novo cliente ──
 function obOpenNew(){
+  const cfg=OB_CFG[obDiv],isTech=obDiv==='Tech';
   const opts='<option value="">(Não designado)</option>'+obCollabOptions().map(u=>`<option value="${ctEsc(u.email)}">${ctEsc(u.nome)}</option>`).join('');
+  document.getElementById('ob-n-title').textContent='Novo Cliente — '+cfg.label;
   document.getElementById('ob-n-sit').value='Transferência';
   ['ob-n-resp','ob-n-tel','ob-n-email','ob-n-cond','ob-n-obs','ob-n-comp'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('ob-n-ca-label').textContent=isTech?'Responsável OneFlow + Reunião':'Colaborador responsável';
+  document.getElementById('ob-n-cb-wrap').style.display=isTech?'':'none';
   document.getElementById('ob-n-ca').innerHTML=opts;document.getElementById('ob-n-cb').innerHTML=opts;
   document.getElementById('ob-n-error').style.display='none';
   openModal('modal-ob-new');refreshIcons();
 }
 async function obSaveNew(){
-  const g=id=>document.getElementById(id),err=g('ob-n-error'),btn=g('ob-n-save');
+  const g=id=>document.getElementById(id),err=g('ob-n-error'),btn=g('ob-n-save'),isTech=obDiv==='Tech';
   const resp=g('ob-n-resp').value.trim();
   if(!resp){err.textContent='Informe o nome do cliente.';err.style.display='flex';return;}
   const pick=id=>{const e=g(id).value;const u=e?obCollabOptions().find(x=>x.email.toLowerCase()===e.toLowerCase()):null;return u?{nome:u.nome,email:u.email}:{nome:'',email:''};};
-  const d={resp,situacao:g('ob-n-sit').value,comp:g('ob-n-comp').value,tel:g('ob-n-tel').value.trim(),email:g('ob-n-email').value.trim(),cond:g('ob-n-cond').value.trim(),obs:g('ob-n-obs').value.trim(),collabA:pick('ob-n-ca'),collabB:pick('ob-n-cb')};
+  const d={resp,situacao:g('ob-n-sit').value,comp:g('ob-n-comp').value,tel:g('ob-n-tel').value.trim(),email:g('ob-n-email').value.trim(),cond:g('ob-n-cond').value.trim(),obs:g('ob-n-obs').value.trim()};
+  if(isTech){d.collabA=pick('ob-n-ca');d.collabB=pick('ob-n-cb');}else d.collabC=pick('ob-n-ca');
   btn.disabled=true;err.style.display='none';
   try{
     const ob=await obCreate(d);
     closeModal('modal-ob-new');obRenderAll();toast('Cliente cadastrado no onboarding!');
-    [['OneFlow',ob.collab.A],['Cadastros',ob.collab.B]].forEach(([r,c])=>{if(c.nome)showTeamsToast(`(simulado) Chat → @${c.nome}: Você foi designado(a) como responsável (${r}) pelo cliente ${ob.resp} (Tech). Acesse o Portal de Onboarding para iniciar o processo.`);});
+    OB_CFG[ob.divisao].groups.forEach(gr=>{const c=ob.collab[gr.key];if(c&&c.nome)showTeamsToast(`(simulado) Chat → @${c.nome}: Você foi designado(a) como responsável (${gr.short}) pelo cliente ${ob.resp} (${ob.divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);});
     obOpenPanel(ob.id);
   }catch(e){console.error(e);err.textContent=ctFriendly(e);err.style.display='flex';}
   finally{btn.disabled=false;}

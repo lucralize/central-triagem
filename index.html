@@ -388,6 +388,35 @@ tr.row-success:hover { background: #dcfce7 !important; }
 .abertura-box p{font-size:12px;color:var(--navy-600);margin-bottom:10px;line-height:1.5;}
 .toast.teams-toast{background:#464775;display:flex;align-items:flex-start;gap:8px;max-width:380px;}
 .teams-toast svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;}
+
+/* ── SINO DE ALERTAS ── */
+.bell-wrap{position:relative;}
+.bell-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:background .2s;}
+.bell-btn:hover{background:rgba(255,255,255,.18);}
+.bell-btn svg{width:16px;height:16px;}
+.bell-badge{position:absolute;top:-5px;right:-5px;background:var(--brand-red);color:#fff;font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #0E1428;}
+.alert-panel{display:none;position:absolute;right:0;top:calc(100% + 10px);width:410px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.3);z-index:960;overflow:hidden;}
+.alert-panel.open{display:block;}
+.alert-panel-hdr{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--gray-200);font-weight:700;font-size:13px;color:var(--brand-navy);}
+.btn-link{background:none;border:none;color:var(--brand-teal);font-size:12px;font-weight:600;cursor:pointer;}
+.btn-link:hover{text-decoration:underline;}
+.alert-list{max-height:min(60vh,520px);overflow-y:auto;}
+.al-item{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-100);cursor:pointer;transition:background .15s;}
+.al-item:hover{background:var(--brand-mist);}
+.al-item.unread{background:#f2fafb;border-left:3px solid var(--brand-teal);padding-left:13px;}
+.al-item.read{opacity:.55;}
+.al-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.al-icon svg{width:16px;height:16px;}
+.al-red{background:#ffe0e4;color:#F62642;}
+.al-amber{background:#fff4d6;color:#b45309;}
+.al-teal{background:#d8f1f4;color:#0C7488;}
+.al-green{background:#dcfce7;color:#15803d;}
+.al-navy{background:#dce5f0;color:#0E1428;}
+.al-title{font-size:13px;font-weight:700;color:var(--brand-navy);}
+.al-desc{font-size:12px;color:var(--brand-slate);margin-top:2px;line-height:1.45;}
+.al-time{font-size:11px;color:var(--gray-400);margin-top:4px;}
+.al-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px;color:var(--gray-400);font-size:13px;}
+.al-empty svg{width:28px;height:28px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -464,6 +493,13 @@ tr.row-success:hover { background: #dcfce7 !important; }
       <p id="page-subtitle">Visão consolidada de todas as pendências</p>
     </div>
     <div id="page-actions">
+      <div class="bell-wrap" id="bell-wrap" style="display:none">
+        <button class="bell-btn" id="bell-btn" onclick="alToggle()" title="Alertas"><i data-lucide="bell"></i><span class="bell-badge" id="bell-badge" style="display:none">0</span></button>
+        <div class="alert-panel" id="alert-panel">
+          <div class="alert-panel-hdr"><span>Alertas</span><button class="btn-link" onclick="alReadAll()">Marcar todos como lidos</button></div>
+          <div class="alert-list" id="alert-list"></div>
+        </div>
+      </div>
       <div class="user-chip" id="header-user-chip" style="display:none"><i data-lucide="user"></i><span id="header-user-name"></span></div>
       <button class="btn-logout" id="btn-logout" style="display:none" onclick="ctLogout()"><i data-lucide="log-out"></i> Sair</button>
     </div>
@@ -1435,6 +1471,7 @@ function ctEnterApp(){
   ctApplyPermissions();
   goTo('painel');
   spSyncCertsPull();spFetchClientStatuses();spFetchChecklist();
+  obBootAlerts();
   if(ctUsersError)toast('Modo de recuperação — '+ctUsersError,'warning');
   refreshIcons();
 }
@@ -1442,7 +1479,7 @@ function ctLogout(){
   if(!confirm('Deseja sair do portal?'))return;
   localStorage.setItem(CT_LOGOUT_FLAG,'1');
   SESSION=null;_spToken=null;CT_USERS=[];ctFile=null;ctUsersError='';ctRecent={};
-  OB={Tech:[],Contabilidade:[]};obRecent={};obHist={};obHistLocal={};obCur=null;obError='';
+  alReset();OB={Tech:[],Contabilidade:[]};obRecent={};obHist={};obHistLocal={};obCur=null;obError='';
   document.getElementById('ob-panel').classList.remove('open');document.getElementById('ob-overlay').classList.remove('open');
   _clientStatusCache=[];_saidaCache=[];_checklistCache=[];
   document.getElementById('header-user-chip').style.display='none';
@@ -2767,7 +2804,7 @@ function showTeamsToast(msg){
 
 // ── lista ──
 function obCollabOptions(){return ctUsersToShow().filter(u=>u.ativo==='Sim').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));}
-function obRenderAll(){obRenderStats();obRenderFilters();obRenderList();obUpdateBadges();refreshIcons();}
+function obRenderAll(){obRenderStats();obRenderFilters();obRenderList();obUpdateBadges();alRefresh();refreshIcons();}
 function obUpdateBadges(){
   setBadge('badge-ob-tech',OB.Tech.filter(o=>obStatus(o)!=='Concluído').length);
   setBadge('badge-ob-cont',OB.Contabilidade.filter(o=>obStatus(o)!=='Concluído').length);
@@ -3078,6 +3115,175 @@ document.getElementById('ob-pnl-body').addEventListener('change',ev=>{
   else if(a==='doc-toggle')obActDocToggle(el.dataset.d,el.checked);
   else if(a==='collab')obActCollab(el.dataset.g,el.value);
 });
+
+
+// ==================== ALERTAS (sino no header) ====================
+// Os alertas são DERIVADOS dos onboardings carregados (nada é gravado na planilha).
+// Só o "lido" e o "toast já exibido" ficam guardados, por usuário, neste navegador.
+const AL_TIPOS={
+  overdue:{icon:'clock',cls:'al-red',ord:1},
+  docpend:{icon:'file-warning',cls:'al-amber',ord:2},
+  constituicao:{icon:'building-2',cls:'al-teal',ord:3},
+  'abertura-ok':{icon:'circle-check',cls:'al-green',ord:4},
+  assign:{icon:'user-check',cls:'al-navy',ord:5}
+};
+const AL_POLL_MS=10*60*1000;
+let AL=[],alState=null,alTimer=null;
+
+function alKey(){return 'ct_alerts_'+(SESSION?SESSION.email:'');}
+function alLoadState(){
+  try{alState=JSON.parse(localStorage.getItem(alKey())||'{}')||{};}catch(e){alState={};}
+  alState.read=alState.read||{};alState.seen=alState.seen||{};
+}
+function alSaveState(){try{localStorage.setItem(alKey(),JSON.stringify(alState));}catch(e){/* sem espaço: segue sem persistir */}}
+function alIsRead(a){return !!(alState&&alState.read[a.id]);}
+function alUnread(){return AL.filter(a=>!alIsRead(a)).length;}
+
+function alRespTxt(o){
+  const nomes=['A','B','C'].map(k=>(o.collab[k]||{}).nome).filter(Boolean);
+  return nomes.length?nomes.map(n=>'@'+n).join(', '):'(não designado)';
+}
+function alEuSouResp(o){
+  const me=SESSION?SESSION.email.toLowerCase():'';
+  return ['A','B','C'].some(k=>{const c=o.collab[k]||{};return c.email&&c.email.toLowerCase()===me;});
+}
+function alCompute(){
+  const out=[];
+  if(!SESSION)return out;
+  ['Tech','Contabilidade'].forEach(div=>{
+    const page=div==='Tech'?'ob-tech':'ob-cont';
+    if(!ctCanAccess(page))return;
+    (OB[div]||[]).forEach(o=>{
+      if(o.corrupt)return;
+      const prog=obProg(o),isConst=o.situacao==='Constituição',resp=alRespTxt(o),link={page,id:o.id};
+      const ref=isConst?(o.aberturaOk?o.aberturaOkEm:null):o.criadoEm;
+      const dias=ref?obDaysSince(ref):0;
+      const idade=obDaysSince(o.criadoEm);
+      // prazo: 3+ dias corridos com progresso < 100% (Constituição só conta depois da abertura)
+      if(prog<100&&ref&&dias>=3)
+        out.push({id:'overdue-'+o.id,tipo:'overdue',link,dias,
+          titulo:`Prazo vencido — ${o.resp}`,
+          desc:`${div} · ${resp} · ${dias} dias desde ${isConst?'a conclusão da abertura':'o registro'} sem conclusão nos sistemas. Progresso: ${prog}%.`,
+          tempo:`${dias} dias em aberto`});
+      // documentos pendentes com o processo já andando
+      if(prog>0&&Object.values(o.docs).some(d=>!d.r))
+        out.push({id:'docpend-'+o.id,tipo:'docpend',link,dias:idade,
+          titulo:`Documentos pendentes — ${o.resp}`,
+          desc:`${div} · ${resp} · Há documentos ainda não recebidos.`,
+          tempo:`cliente há ${idade} dias`});
+      // constituição aguardando a abertura da empresa (não conta prazo)
+      if(isConst&&!o.aberturaOk)
+        out.push({id:'constituicao-'+o.id,tipo:'constituicao',link,dias:idade,
+          titulo:`Aguardando abertura — ${o.resp}`,
+          desc:'Processo de constituição pendente. Marque a abertura como concluída para liberar o cadastro nos sistemas e avisar os colaboradores.',
+          tempo:`cliente há ${idade} dias`});
+      // para quem é responsável: abertura liberada e nada iniciado / designação em andamento
+      if(alEuSouResp(o)&&prog<100){
+        if(isConst&&o.aberturaOk&&prog===0)
+          out.push({id:'abertura-ok-'+o.id,tipo:'abertura-ok',link,dias:0,
+            titulo:`Abertura concluída — ${o.resp}`,
+            desc:`${div} · A abertura foi concluída em ${obFmtTs(o.aberturaOkEm)}. O cadastro nos sistemas está liberado: inicie o processo.`,
+            tempo:`abertura em ${obFmtTs(o.aberturaOkEm)}`});
+        out.push({id:'assign-'+o.id,tipo:'assign',link,dias:idade,
+          titulo:`Você é responsável — ${o.resp}`,
+          desc:`${div} · Você foi designado(a) como responsável por este cliente. Acesse o onboarding para iniciar o processo.`,
+          tempo:`cliente há ${idade} dias`});
+      }
+    });
+  });
+  out.sort((a,b)=>(alIsRead(a)-alIsRead(b))||(AL_TIPOS[a.tipo].ord-AL_TIPOS[b.tipo].ord)||(b.dias-a.dias));
+  return out;
+}
+
+// reavalia os alertas; avisa (toast) apenas os prazos que ainda não foram vistos neste navegador
+function alRefresh(){
+  if(!SESSION)return;
+  if(!alState)alLoadState();
+  AL=alCompute();
+  const novos=AL.filter(a=>a.tipo==='overdue'&&!alState.seen[a.id]);
+  if(novos.length){
+    novos.forEach(a=>{alState.seen[a.id]=Date.now();});
+    novos.slice(0,3).forEach(a=>{
+      const o=obFind(a.link.id);if(!o)return;
+      showTeamsToast(`(simulado) Grupo Triagem — ${alRespTxt(o)}: ${o.resp} com ${a.dias} dias em aberto. Conclua o cadastro nos sistemas.`);
+    });
+    if(novos.length>3)showTeamsToast(`(simulado) Grupo Triagem — e mais ${novos.length-3} cliente(s) com prazo vencido. Veja o sino de alertas.`);
+  }
+  // limpeza: esquece ids antigos que não estão mais ativos
+  const ativos=new Set(AL.map(a=>a.id)),lim=Date.now()-90*86400000;
+  ['read','seen'].forEach(k=>Object.keys(alState[k]).forEach(id=>{if(!ativos.has(id)&&alState[k][id]<lim)delete alState[k][id];}));
+  alSaveState();
+  AL=alCompute();
+  alRender();
+}
+
+// ── interface ──
+function alRender(){
+  const wrap=document.getElementById('bell-wrap');if(!wrap)return;
+  const n=alUnread(),b=document.getElementById('bell-badge');
+  b.textContent=n>99?'99+':String(n);b.style.display=n?'':'none';
+  const list=document.getElementById('alert-list');
+  if(!AL.length){list.innerHTML='<div class="al-empty"><i data-lucide="circle-check"></i><span>Nenhum alerta pendente</span></div>';refreshIcons();return;}
+  list.innerHTML=AL.map(a=>{
+    const t=AL_TIPOS[a.tipo];
+    return `<div class="al-item ${alIsRead(a)?'read':'unread'}" data-id="${ctEsc(a.id)}">
+      <div class="al-icon ${t.cls}"><i data-lucide="${t.icon}"></i></div>
+      <div class="al-body"><div class="al-title">${ctEsc(a.titulo)}</div><div class="al-desc">${ctEsc(a.desc)}</div><div class="al-time">${ctEsc(a.tempo)}</div></div></div>`;
+  }).join('');
+  refreshIcons();
+}
+function alToggle(){
+  const p=document.getElementById('alert-panel');
+  const abrir=!p.classList.contains('open');
+  p.classList.toggle('open',abrir);
+  if(abrir)alRender();
+}
+function alClose(){const p=document.getElementById('alert-panel');if(p)p.classList.remove('open');}
+function alReadAll(){
+  AL.forEach(a=>{alState.read[a.id]=Date.now();});
+  alSaveState();AL=alCompute();alRender();
+}
+function alOpen(id){
+  const a=AL.find(x=>x.id===id);if(!a)return;
+  alState.read[id]=Date.now();alSaveState();
+  AL=alCompute();alRender();alClose();
+  if(a.link&&ctCanAccess(a.link.page)){
+    goTo(a.link.page);
+    if(obFind(a.link.id))obOpenPanel(a.link.id);
+  }
+}
+
+// ── ciclo de vida ──
+async function alPoll(){
+  if(!SESSION||obBusy||document.hidden)return;
+  try{
+    await obLoadAll();
+    alRefresh();obUpdateBadges();
+    const ativa=document.querySelector('.page.active');
+    if(ativa&&ativa.id==='page-ob'&&!obBusy){obRenderStats();obRenderList();}
+  }catch(e){console.warn('Atualização dos alertas:',e.message);}
+}
+async function obBootAlerts(){
+  alLoadState();
+  const pode=ctCanAccess('ob-tech')||ctCanAccess('ob-cont');
+  document.getElementById('bell-wrap').style.display=pode?'':'none';
+  if(!pode)return;
+  try{await obLoadAll();}catch(e){console.warn('Alertas: não foi possível carregar os onboardings —',e.message);}
+  if(!SESSION)return;   // saiu enquanto carregava
+  alRefresh();obUpdateBadges();refreshIcons();
+  if(alTimer)clearInterval(alTimer);
+  alTimer=setInterval(alPoll,AL_POLL_MS);
+}
+function alReset(){
+  if(alTimer){clearInterval(alTimer);alTimer=null;}
+  AL=[];alState=null;
+  const w=document.getElementById('bell-wrap');if(w)w.style.display='none';
+  alClose();
+}
+document.getElementById('alert-list').addEventListener('click',ev=>{const it=ev.target.closest('.al-item');if(it)alOpen(it.dataset.id);});
+// composedPath(): o Lucide troca o <svg> clicado durante o clique, então ev.target já pode estar fora do DOM
+document.addEventListener('click',ev=>{const w=document.getElementById('bell-wrap');if(w&&!ev.composedPath().includes(w))alClose();});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape')alClose();});
 
 
 // ==================== INIT ====================

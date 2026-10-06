@@ -4,32 +4,47 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Central de Triagem — Lucralize</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2/lib/msal-browser.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --navy-900: #060d1a;
-  --navy-800: #0d1b2a;
-  --navy-700: #112240;
-  --navy-600: #1b2f52;
-  --navy-500: #1e3a5f;
-  --navy-400: #1d4ed8;
-  --navy-300: #2563eb;
-  --navy-200: #3b82f6;
-  --navy-100: #bfdbfe;
-  --navy-50:  #eff6ff;
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
+  /* Paleta oficial — Manual da Marca Lucralize */
+  --brand-navy: #0E1428;
+  --brand-navy-deep: #080B15;
+  --brand-teal: #0C7488;
+  --brand-teal-dark: #095668;
+  --brand-sky: #91DBE4;
+  --brand-red: #F62642;
+  --brand-mist: #EBF0F3;
+  --brand-slate: #657786;
+  --portal-gradient: radial-gradient(1100px 720px at 6% -8%, rgba(12,116,136,.9), transparent 55%), radial-gradient(820px 620px at 46% 18%, rgba(12,116,136,.4), transparent 62%), linear-gradient(155deg, #0E1428 0%, #080B15 78%);
+
+  /* Escala usada pelo restante do CSS, remapeada para a paleta */
+  --navy-900: #080B15;
+  --navy-800: #0E1428;
+  --navy-700: #0E1428;
+  --navy-600: #0b4f5c;
+  --navy-500: #0C7488;
+  --navy-400: #0C7488;
+  --navy-300: #0C7488;
+  --navy-200: #91DBE4;
+  --navy-100: #c9ebf0;
+  --navy-50:  #EBF0F3;
+  --primary: #0E1428;
+  --primary-dark: #080B15;
   --success: #16a34a;
   --warning: #d97706;
-  --danger: #dc2626;
-  --info: #0891b2;
+  --danger: #F62642;
+  --info: #0C7488;
   --gray-50:  #f8fafc;
   --gray-100: #f1f5f9;
   --gray-200: #e2e8f0;
   --gray-300: #cbd5e1;
   --gray-400: #94a3b8;
-  --gray-500: #64748b;
+  --gray-500: #657786;
   --gray-600: #475569;
   --gray-700: #334155;
   --gray-800: #1e293b;
@@ -40,46 +55,42 @@
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
   --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
 }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-50); color: var(--gray-800); display: flex; min-height: 100vh; font-size: 13px; }
+body { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--brand-mist); color: var(--gray-800); display: flex; min-height: 100vh; font-size: 13px; }
+button, input, select, textarea { font-family: inherit; }
 
 /* ── SIDEBAR ── */
 #sidebar {
-  width: 200px; min-width: 200px;
-  background: linear-gradient(180deg, var(--navy-800) 0%, var(--navy-700) 100%);
-  color: #94a3b8; display: flex; flex-direction: column;
+  width: 232px; min-width: 232px;
+  background: var(--portal-gradient);
+  color: rgba(255,255,255,.65); display: flex; flex-direction: column;
   position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
-  overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.04);
+  overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.06);
 }
-#sidebar-header {
-  padding: 22px 18px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 100%);
-}
-#sidebar-logo { display: flex; flex-direction: column; justify-content: center; }
-
-#sidebar-header h1 { font-size: 13px; font-weight: 700; color: #f1f5f9; letter-spacing: 0.2px; line-height: 1.3; }
-#sidebar-header p { font-size: 11px; color: #475569; margin-top: 2px; }
+#sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+#sidebar-logo { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+#sidebar-logo img { height: 46px; max-width: 100%; object-fit: contain; display: block; }
+#sidebar-logo .sidebar-caption { font-size: 10px; font-weight: 600; color: var(--brand-sky); letter-spacing: 1.4px; text-transform: uppercase; margin-top: 8px; opacity: .85; }
 #sidebar nav { flex: 1; padding: 10px 0; }
-.nav-section { padding: 14px 18px 5px; font-size: 10px; font-weight: 700; color: #2d3f55; letter-spacing: 1.2px; text-transform: uppercase; }
+.nav-section { padding: 14px 16px 5px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.35); letter-spacing: 0.9px; text-transform: uppercase; }
 .nav-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 18px; cursor: pointer;
-  border-left: 3px solid transparent; transition: all 0.15s; color: #94a3b8;
+  display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer;
+  border-left: 3px solid transparent; transition: all 0.15s; color: rgba(255,255,255,.65);
   font-size: 13px; font-weight: 500; margin: 1px 0;
 }
-.nav-item:hover { background: rgba(255,255,255,0.05); color: #cbd5e1; }
-.nav-item.active { background: rgba(37,99,235,0.15); color: #93c5fd; border-left-color: #3b82f6; }
-.nav-item .icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-.nav-badge { margin-left: auto; background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 20px; }
-#sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: #2d3f55; background: rgba(0,0,0,0.2); }
-#sidebar-footer .footer-version { font-weight: 600; color: #3d5068; margin-bottom: 2px; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item.active { background: rgba(255,255,255,0.14); color: #fff; font-weight: 600; }
+.nav-item .icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-item .icon svg, .nav-item i[data-lucide] { width: 16px; height: 16px; stroke-width: 2; opacity: .9; }
+.nav-badge { margin-left: auto; background: var(--brand-red); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 20px; }
 
 /* ── MAIN ── */
-#main { margin-left: 200px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+#main { margin-left: 232px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
 
 /* ── PAGE HEADER ── */
-.page-header { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-.page-header h2 { font-size: 17px; font-weight: 700; color: var(--navy-700); letter-spacing: -0.2px; }
-.page-header p { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+.page-header { background: var(--portal-gradient); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+.page-header h2 { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
+.page-header p { font-size: 12px; color: var(--brand-sky); opacity: .85; margin-top: 2px; }
+#page-actions { display: flex; align-items: center; gap: 10px; }
 
 /* ── CONTENT ── */
 #content { padding: 16px 20px; flex: 1; }
@@ -89,7 +100,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 /* ── CARDS ── */
 .card { background: #fff; border-radius: var(--border-radius); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; border: 1px solid var(--gray-200); }
 .card-header { padding: 14px 18px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(to right, #f8fafc, #fff); }
-.card-header h3 { font-size: 12px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.5px; }
+.card-header h3 { font-size: 12px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+.card-header h3 svg, .card-header h3 i[data-lucide] { width: 15px; height: 15px; flex-shrink: 0; }
+.ico-red { color: var(--brand-red); } .ico-amber { color: #d97706; } .ico-teal { color: var(--brand-teal); }
 .card-body { padding: 18px; }
 
 /* ── GRID ── */
@@ -103,15 +116,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .stat-card.red { border-top-color: var(--danger); }
 .stat-card.yellow { border-top-color: var(--warning); }
 .stat-card.green { border-top-color: var(--success); }
-.stat-card.blue { border-top-color: var(--primary); }
+.stat-card.blue { border-top-color: var(--brand-teal); }
 .stat-card.navy { border-top-color: var(--navy-500); }
-.stat-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
-.stat-icon.red { background: #fef2f2; }
-.stat-icon.yellow { background: #fffbeb; }
-.stat-icon.green { background: #f0fdf4; }
-.stat-icon.blue { background: var(--navy-50); }
-.stat-icon.gray { background: var(--gray-100); }
-.stat-icon.navy { background: #dbeafe; }
+.stat-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; color: var(--brand-teal); }
+.stat-icon svg, .stat-icon i[data-lucide] { width: 22px; height: 22px; stroke-width: 2; }
+.stat-icon.red { background: #ffe0e4; color: var(--brand-red); }
+.stat-icon.yellow { background: #fff4d6; color: #b45309; }
+.stat-icon.green { background: #dcfce7; color: #15803d; }
+.stat-icon.blue { background: #d8f1f4; color: var(--brand-teal); }
+.stat-icon.gray { background: var(--brand-mist); color: var(--brand-slate); }
+.stat-icon.navy { background: #dce5f0; color: var(--brand-navy); }
 .stat-value { font-size: 30px; font-weight: 800; line-height: 1; color: var(--gray-900); letter-spacing: -1px; }
 .stat-label { font-size: 12px; color: var(--gray-500); margin-top: 3px; font-weight: 500; }
 .stat-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
@@ -120,26 +134,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .badge-success { background: #dcfce7; color: #15803d; }
 .badge-warning { background: #fef9c3; color: #92400e; }
-.badge-danger  { background: #fee2e2; color: #991b1b; }
-.badge-info    { background: #e0f2fe; color: #0369a1; }
+.badge-danger  { background: #ffe0e4; color: #c81e3a; }
+.badge-info    { background: #d8f1f4; color: #0C7488; }
 .badge-gray    { background: var(--gray-100); color: var(--gray-600); }
-.badge-purple  { background: #f3e8ff; color: #7e22ce; }
-.badge-navy    { background: var(--navy-50); color: var(--navy-500); }
+.badge-purple  { background: #dce5f0; color: #0E1428; }
+.badge-navy    { background: var(--brand-mist); color: var(--brand-teal); }
+.badge-susp    { background: #d8f1f4; color: #0C7488; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+.badge-cancel  { background: #ffe0e4; color: #F62642; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
 
 /* ── BUTTONS ── */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
-.btn-primary { background: var(--primary); color: #fff; box-shadow: 0 1px 3px rgba(37,99,235,0.25); }
-.btn-primary:hover { background: var(--primary-dark); box-shadow: 0 2px 6px rgba(37,99,235,0.4); }
+.btn-primary { background: var(--brand-navy); color: #fff; box-shadow: 0 1px 3px rgba(14,20,40,0.25); }
+.btn-primary:hover { background: var(--brand-teal); box-shadow: 0 2px 6px rgba(12,116,136,0.35); }
+.btn-secondary { background: var(--brand-teal); color: #fff; }
+.btn-secondary:hover { background: var(--brand-teal-dark); }
 .btn-success { background: var(--success); color: #fff; }
 .btn-success:hover { background: #15803d; }
 .btn-danger { background: var(--danger); color: #fff; }
-.btn-danger:hover { background: #b91c1c; }
+.btn-danger:hover { background: #d81a36; }
 .btn-outline { background: #fff; color: var(--gray-700); border: 1px solid var(--gray-300); }
-.btn-outline:hover { background: var(--gray-50); border-color: var(--gray-400); }
+.btn-outline:hover { background: var(--brand-mist); border-color: var(--brand-teal); color: var(--brand-teal); }
 .btn-navy { background: var(--navy-700); color: #fff; }
-.btn-navy:hover { background: var(--navy-800); }
+.btn-navy:hover { background: var(--brand-teal); }
 .btn-sm { padding: 5px 11px; font-size: 12px; }
 .btn-icon { padding: 6px 8px; }
+.btn svg, .btn i[data-lucide] { width: 15px; height: 15px; flex-shrink: 0; }
 
 /* ── FORMS ── */
 .form-group { margin-bottom: 14px; }
@@ -148,7 +167,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   width: 100%; padding: 9px 12px; border: 1px solid var(--gray-300); border-radius: 7px;
   font-size: 13px; color: var(--gray-800); background: #fff; transition: border-color 0.15s, box-shadow 0.15s;
 }
-.form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.form-control:focus { outline: none; border-color: var(--brand-teal); box-shadow: 0 0 0 3px rgba(12,116,136,0.15); }
 select.form-control { cursor: pointer; }
 textarea.form-control { resize: vertical; min-height: 70px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -158,7 +177,7 @@ textarea.form-control { resize: vertical; min-height: 70px; }
 /* ── TABLES ── */
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-thead th { padding: 11px 14px; text-align: left; font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.7px; background: var(--gray-50); border-bottom: 2px solid var(--gray-200); white-space: nowrap; }
+thead th { padding: 11px 14px; text-align: left; font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.7px; background: var(--brand-mist); border-bottom: 2px solid var(--gray-200); white-space: nowrap; }
 tbody td { padding: 7px 10px; border-bottom: 1px solid var(--gray-100); font-size: 13px; color: var(--gray-700); vertical-align: middle; }
 tbody tr:hover { background: var(--navy-50); }
 tbody tr:last-child td { border-bottom: none; }
@@ -179,7 +198,8 @@ tbody tr:last-child td { border-bottom: none; }
 .alert-danger  { background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid var(--danger);  color: #991b1b; }
 .alert-warning { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid var(--warning); color: #92400e; }
 .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid var(--success); color: #15803d; }
-.alert-info    { background: var(--navy-50); border: 1px solid #bfdbfe; border-left: 4px solid var(--primary); color: var(--navy-600); }
+.alert-info    { background: #eaf6f8; border: 1px solid #b7e3ea; border-left: 4px solid var(--brand-teal); color: var(--navy-600); align-items: center; }
+.alert > svg, .alert > i[data-lucide] { width: 15px; height: 15px; flex-shrink: 0; }
 
 /* CHECKLIST */
 .checklist-group { margin-bottom: 20px; }
@@ -205,7 +225,8 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* EMPTY STATE */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); }
-.empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+.empty-state .icon { font-size: 40px; margin-bottom: 8px; color: var(--gray-300); display: flex; justify-content: center; }
+.empty-state .icon svg, .empty-state .icon i[data-lucide] { width: 44px; height: 44px; stroke-width: 1.5; }
 .empty-state p { font-size: 14px; }
 
 /* ── TOAST ── */
@@ -214,7 +235,7 @@ tbody tr:last-child td { border-bottom: none; }
 .toast-success { background: var(--success); }
 .toast-error   { background: var(--danger); }
 .toast-warning { background: var(--warning); }
-.toast-info    { background: var(--primary); }
+.toast-info    { background: var(--brand-teal); }
 @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* COFRE */
@@ -270,16 +291,17 @@ tr.row-success:hover { background: #dcfce7 !important; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.js"></script>
 </head>
 <body>
 
 <!-- LOGIN GATE -->
-<div id="login-gate" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#060d1a,#0d1b2a);display:flex;align-items:center;justify-content:center;">
+<div id="login-gate" style="position:fixed;inset:0;z-index:99999;background:var(--portal-gradient);display:flex;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:16px;padding:40px 36px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);">
     <img id="login-gate-logo" src="" alt="Lucralize" style="height:44px;max-width:220px;object-fit:contain;margin:0 auto 16px;display:block;" onerror="this.style.display='none'">
-    <h2 style="font-size:18px;margin-bottom:6px;color:#0d1b2a;">Central de Triagem</h2>
-    <p style="font-size:13px;color:#6b7280;margin-bottom:24px;">Acesso restrito à equipe Lucralize</p>
-    <button id="login-gate-btn" onclick="gateLogin()" style="width:100%;padding:12px 16px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Entrar com conta Lucralize</button>
+    <h2 style="font-size:18px;margin-bottom:6px;color:#0E1428;">Central de Triagem</h2>
+    <p style="font-size:13px;color:#657786;margin-bottom:24px;">Acesso restrito à equipe Lucralize</p>
+    <button id="login-gate-btn" onclick="gateLogin()" style="width:100%;padding:12px 16px;background:#0C7488;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Entrar com conta Lucralize</button>
     <div id="login-gate-status" style="margin-top:14px;font-size:12px;color:#9ca3af;"></div>
   </div>
 </div>
@@ -288,32 +310,30 @@ tr.row-success:hover { background: #dcfce7 !important; }
 <nav id="sidebar">
   <div id="sidebar-header">
     <div id="sidebar-logo">
-      <h1>Central de Triagem</h1>
-      <img id="sidebar-logo-img" src="" alt="Lucralize"
-           style="height:22px;max-width:130px;object-fit:contain;opacity:.9;margin-top:5px;display:block;"
-           onerror="this.style.display='none'">
+      <img id="sidebar-logo-img" src="" alt="Lucralize" onerror="this.style.display='none'">
+      <div class="sidebar-caption">Central de Triagem</div>
     </div>
   </div>
   <nav>
     <div class="nav-section">Principal</div>
     <div class="nav-item active" onclick="goTo('painel')" id="nav-painel">
-      <span class="icon">📊</span> Painel Geral
+      <span class="icon"><i data-lucide="layout-dashboard"></i></span> Painel Geral
     </div>
     <div class="nav-section">Módulos</div>
     <div class="nav-item" onclick="goTo('documentos')" id="nav-documentos">
-      <span class="icon">📋</span> Recebimento de Docs
+      <span class="icon"><i data-lucide="clipboard-list"></i></span> Recebimento de Docs
       <span class="nav-badge" id="badge-docs" style="display:none"></span>
     </div>
     <div class="nav-item" onclick="goTo('certificados')" id="nav-certificados">
-      <span class="icon">🔐</span> Certificados / eCac
+      <span class="icon"><i data-lucide="shield-check"></i></span> Certificados / eCac
       <span class="nav-badge" id="badge-certs" style="display:none"></span>
     </div>
     <div class="nav-item" onclick="goTo('saida')" id="nav-saida">
-      <span class="icon">🚪</span> Saída de Clientes
+      <span class="icon"><i data-lucide="log-out"></i></span> Saída de Clientes
       <span class="nav-badge" id="badge-saida" style="display:none"></span>
     </div>
     <div class="nav-item" onclick="goTo('suspensos')" id="nav-suspensos">
-      <span class="icon">⏸️</span> Suspenso/Em Cancelamento
+      <span class="icon"><i data-lucide="circle-pause"></i></span> Suspenso/Em Cancelamento
       <span class="nav-badge" id="badge-susp" style="display:none"></span>
     </div>
   </nav>
@@ -336,21 +356,21 @@ tr.row-success:hover { background: #dcfce7 !important; }
       <div class="grid-2">
         <div>
           <div class="card">
-            <div class="card-header"><h3>🔴 Urgente — Ação Imediata</h3></div>
+            <div class="card-header"><h3><i data-lucide="triangle-alert" class="ico-red"></i> Urgente — Ação Imediata</h3></div>
             <div class="card-body" id="painel-urgente"></div>
           </div>
           <div class="card">
-            <div class="card-header"><h3>🟡 Atenção — Acompanhar</h3></div>
+            <div class="card-header"><h3><i data-lucide="clock" class="ico-amber"></i> Atenção — Acompanhar</h3></div>
             <div class="card-body" id="painel-atencao"></div>
           </div>
         </div>
         <div>
           <div class="card">
-            <div class="card-header"><h3>📋 Documentação Pendente</h3></div>
+            <div class="card-header"><h3><i data-lucide="clipboard-list" class="ico-teal"></i> Documentação Pendente</h3></div>
             <div class="card-body" id="painel-docs"></div>
           </div>
           <div class="card">
-            <div class="card-header"><h3>⏸️ Suspensos / 🚪 Saídas</h3></div>
+            <div class="card-header"><h3><i data-lucide="circle-pause" class="ico-teal"></i> Suspensos / Saídas</h3></div>
             <div class="card-body" id="painel-outros"></div>
           </div>
         </div>
@@ -369,7 +389,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
           </select>
         </div>
       </div>
-      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;">🔄 Lista em tempo real, lida diretamente do SharePoint (Checklist Documentos). Mostra apenas clientes com Documentos Recebidos = "Não". Marcar cada item ou o checkbox final grava direto no SharePoint.</div>
+      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;"><i data-lucide="refresh-cw"></i>Lista em tempo real, lida diretamente do SharePoint (Checklist Documentos). Mostra apenas clientes com Documentos Recebidos = "Não". Marcar cada item ou o checkbox final grava direto no SharePoint.</div>
       <div class="card">
         <div class="card-body">
           <div class="table-wrap">
@@ -388,7 +408,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
             </table>
           </div>
           <div class="empty-state" id="docs-empty" style="display:none;">
-            <div class="icon">📋</div>
+            <div class="icon"><i data-lucide="clipboard-list"></i></div>
             <p>Nenhum cliente com checklist pendente.</p>
           </div>
         </div>
@@ -430,7 +450,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
           <span id="cert-count-label" style="font-size:12px;color:var(--gray-500);white-space:nowrap;padding:0 4px;"></span>
         </div>
         <div style="position:relative;margin-left:8px;" id="cert-export-wrap">
-          <button class="btn btn-outline" onclick="toggleCertMenu()">⬇️ Extrair ▾</button>
+          <button class="btn btn-outline" onclick="toggleCertMenu()"><i data-lucide="download"></i> Extrair ▾</button>
           <div id="cert-menu" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:220px;z-index:200;overflow:hidden;">
             <div style="padding:8px 14px;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--gray-100);">Certificados</div>
             <div onclick="exportarCertsPDF();toggleCertMenu()" style="padding:10px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background='#fff'">📄 <span><strong>PDF</strong> <span style="color:var(--gray-400);font-size:11px;">— relatório de certificados</span></span></div>
@@ -469,7 +489,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
             </table>
           </div>
           <div class="empty-state" id="certs-empty" style="display:none;">
-            <div class="icon">🔐</div>
+            <div class="icon"><i data-lucide="shield-check"></i></div>
             <p>Nenhum certificado cadastrado ainda.</p>
           </div>
         </div>
@@ -491,7 +511,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
           </select>
         </div>
       </div>
-      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;">🔄 Lista em tempo real, lida diretamente do SharePoint (Cancelamento de Clientes / Cancelamento e Suspenso de Clientes). Mostra apenas clientes com término de contrato a partir de hoje e com Documentação Enviada/Recebida marcada como "Não". Marcar o checkbox grava direto no SharePoint.</div>
+      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;"><i data-lucide="refresh-cw"></i>Lista em tempo real, lida diretamente do SharePoint (Cancelamento de Clientes / Cancelamento e Suspenso de Clientes). Mostra apenas clientes com término de contrato a partir de hoje e com Documentação Enviada/Recebida marcada como "Não". Marcar o checkbox grava direto no SharePoint.</div>
       <div class="card">
         <div class="card-body">
           <div class="table-wrap">
@@ -510,7 +530,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
             </table>
           </div>
           <div class="empty-state" id="saida-empty" style="display:none;">
-            <div class="icon">🚪</div>
+            <div class="icon"><i data-lucide="log-out"></i></div>
             <p>Nenhum cliente com saída registrada.</p>
           </div>
         </div>
@@ -533,9 +553,9 @@ tr.row-success:hover { background: #dcfce7 !important; }
             <option value="EM CANCELAMENTO">Em Cancelamento</option>
           </select>
         </div>
-        <button class="btn btn-outline" style="margin-left:8px;" onclick="exportarSuspensosImagem()">📷 Extrair Imagem</button>
+        <button class="btn btn-outline" style="margin-left:8px;" onclick="exportarSuspensosImagem()"><i data-lucide="image"></i> Extrair Imagem</button>
       </div>
-      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;">🔄 Lista em tempo real, lida diretamente do SharePoint (Controle de Clientes / Base de Usuários) — somente leitura.</div>
+      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;"><i data-lucide="refresh-cw"></i>Lista em tempo real, lida diretamente do SharePoint (Controle de Clientes / Base de Usuários) — somente leitura.</div>
       <div class="card">
         <div class="card-body">
           <div class="table-wrap">
@@ -552,7 +572,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
             </table>
           </div>
           <div class="empty-state" id="susp-empty" style="display:none;">
-            <div class="icon">⏸️</div>
+            <div class="icon"><i data-lucide="circle-pause"></i></div>
             <p>Nenhum cliente suspenso ou em cancelamento.</p>
           </div>
         </div>
@@ -1289,6 +1309,7 @@ const pages={painel:'Painel Geral',documentos:'Recebimento de Documentos',certif
 const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Checklist de recebimento por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento'};
 let currentPage='painel', currentEditId=null, alertaCertId=null, alertaTipo=null;
 
+function refreshIcons(){ try{ if(window.lucide&&lucide.createIcons)lucide.createIcons(); }catch(e){ console.warn('Lucide:',e); } }
 function goTo(page) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1302,6 +1323,7 @@ function goTo(page) {
   const fns={painel:renderPainel,documentos:renderDocsTable,certificados:renderCertsTable,saida:renderSaidaTable,suspensos:renderSuspTable};
   if(fns[page]) fns[page]();
   if(page==='certificados') setTimeout(verificarDispatchAutomatico,400);
+  refreshIcons();
 }
 
 // ==================== MODAL ====================
@@ -1333,21 +1355,21 @@ function renderPainel(){
   const tot=cv15.length+pv15.length+sp.length;
 
   document.getElementById('painel-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-icon red">🔴</div><div><div class="stat-value">${tot}</div><div class="stat-label">Urgentes</div><div class="stat-sub">Ação imediata</div></div></div>
-    <div class="stat-card"><div class="stat-icon yellow">🟡</div><div><div class="stat-value">${cv30.length+pv30.length}</div><div class="stat-label">Atenção</div><div class="stat-sub">Acompanhar</div></div></div>
-    <div class="stat-card"><div class="stat-icon blue">📋</div><div><div class="stat-value">${dp.length}</div><div class="stat-label">Docs Pendentes</div><div class="stat-sub">Checklists incompletos</div></div></div>
-    <div class="stat-card"><div class="stat-icon gray">⏸️</div><div><div class="stat-value">${sa.length}</div><div class="stat-label">Suspensos</div><div class="stat-sub">Contratos ativos</div></div></div>`;
+    <div class="stat-card"><div class="stat-icon red"><i data-lucide="triangle-alert"></i></div><div><div class="stat-value">${tot}</div><div class="stat-label">Urgentes</div><div class="stat-sub">Ação imediata</div></div></div>
+    <div class="stat-card"><div class="stat-icon yellow"><i data-lucide="clock"></i></div><div><div class="stat-value">${cv30.length+pv30.length}</div><div class="stat-label">Atenção</div><div class="stat-sub">Acompanhar</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue"><i data-lucide="clipboard-list"></i></div><div><div class="stat-value">${dp.length}</div><div class="stat-label">Docs Pendentes</div><div class="stat-sub">Checklists incompletos</div></div></div>
+    <div class="stat-card"><div class="stat-icon gray"><i data-lucide="circle-pause"></i></div><div><div class="stat-value">${sa.length}</div><div class="stat-label">Suspensos</div><div class="stat-sub">Contratos ativos</div></div></div>`;
 
   let urg='';
-  if(cv15.length) urg+=`<div class="alert alert-danger">🔐 <strong>${cv15.length} certificado(s)</strong> vencendo em ≤15 dias</div>`;
-  if(pv15.length) urg+=`<div class="alert alert-danger">📜 <strong>${pv15.length} procuração(ões) eCac</strong> vencendo em ≤15 dias</div>`;
-  if(sp.length) urg+=`<div class="alert alert-danger">🚪 <strong>${sp.length} envio(s)</strong> de documentos pendentes (saída)</div>`;
+  if(cv15.length) urg+=`<div class="alert alert-danger"><i data-lucide="shield-check"></i><strong>${cv15.length} certificado(s)</strong> vencendo em ≤15 dias</div>`;
+  if(pv15.length) urg+=`<div class="alert alert-danger"><i data-lucide="file-text"></i><strong>${pv15.length} procuração(ões) eCac</strong> vencendo em ≤15 dias</div>`;
+  if(sp.length) urg+=`<div class="alert alert-danger"><i data-lucide="log-out"></i><strong>${sp.length} envio(s)</strong> de documentos pendentes (saída)</div>`;
   document.getElementById('painel-urgente').innerHTML=urg||'<p class="text-gray text-sm">✅ Nenhuma urgência.</p>';
 
   let atn='';
-  if(cv30.length) atn+=`<div class="alert alert-warning">🔐 ${cv30.length} certificado(s) vencendo em 16–30 dias</div>`;
-  if(pv30.length) atn+=`<div class="alert alert-warning">📜 ${pv30.length} procuração(ões) vencendo em 16–30 dias</div>`;
-  if(sec.length) atn+=`<div class="alert alert-warning">🚫 ${sec.length} cliente(s) em cancelamento</div>`;
+  if(cv30.length) atn+=`<div class="alert alert-warning"><i data-lucide="shield-check"></i>${cv30.length} certificado(s) vencendo em 16–30 dias</div>`;
+  if(pv30.length) atn+=`<div class="alert alert-warning"><i data-lucide="file-text"></i>${pv30.length} procuração(ões) vencendo em 16–30 dias</div>`;
+  if(sec.length) atn+=`<div class="alert alert-warning"><i data-lucide="ban"></i>${sec.length} cliente(s) em cancelamento</div>`;
   document.getElementById('painel-atencao').innerHTML=atn||'<p class="text-gray text-sm">✅ Nada a acompanhar.</p>';
 
   let dh='';
@@ -1356,12 +1378,13 @@ function renderPainel(){
   document.getElementById('painel-docs').innerHTML=dh;
 
   document.getElementById('painel-outros').innerHTML=`
-    <p class="text-sm font-bold" style="margin-bottom:6px;">⏸️ Suspenso / Em Cancelamento</p>
+    <p class="text-sm font-bold" style="margin-bottom:6px;display:flex;align-items:center;gap:6px;"><i data-lucide="circle-pause" class="ico-teal" style="width:14px;height:14px"></i> Suspenso / Em Cancelamento</p>
     <div class="flex-between text-sm" style="padding:3px 0;"><span>Suspenso</span><span class="badge badge-warning">${sa.length}</span></div>
     <div class="flex-between text-sm" style="padding:3px 0;"><span>Em Cancelamento</span><span class="badge badge-danger">${sec.length}</span></div>
     <div class="divider"></div>
-    <p class="text-sm font-bold" style="margin-bottom:6px;">🚪 Saída de Clientes</p>
+    <p class="text-sm font-bold" style="margin-bottom:6px;display:flex;align-items:center;gap:6px;"><i data-lucide="log-out" class="ico-teal" style="width:14px;height:14px"></i> Saída de Clientes</p>
     <div class="flex-between text-sm" style="padding:3px 0;"><span>Documentação pendente</span><span class="badge badge-danger">${sp.length}</span></div>`;
+  refreshIcons();
   updateBadges();
 }
 
@@ -1558,7 +1581,7 @@ function renderSuspTable(){
   const tbody=document.getElementById('susp-table-body'),empty=document.getElementById('susp-empty');
   if(!data.length){tbody.innerHTML='';empty.style.display='';return;}
   empty.style.display='none';
-  tbody.innerHTML=data.map(c=>`<tr class="urgente-15"><td><code style="font-size:12px;">${c.cnpj}</code></td><td><strong>${c.razaoSocial}</strong></td><td><span class="badge ${c.divisao==='Contabilidade'?'badge-info':'badge-purple'}">${c.divisao}</span></td><td><span class="badge badge-warning">${c.situacao==='EM CANCELAMENTO'?'🚫 Em Cancelamento':'⏸️ Suspenso'}</span></td></tr>`).join('');
+  tbody.innerHTML=data.map(c=>`<tr class="${c.situacao==='EM CANCELAMENTO'?'urgente-15':''}"><td><code style="font-size:12px;">${c.cnpj}</code></td><td><strong>${c.razaoSocial}</strong></td><td><span class="badge ${c.divisao==='Contabilidade'?'badge-info':'badge-purple'}">${c.divisao}</span></td><td><span class="badge ${c.situacao==='EM CANCELAMENTO'?'badge-cancel':'badge-susp'}">${c.situacao==='EM CANCELAMENTO'?'Em Cancelamento':'Suspenso'}</span></td></tr>`).join('');
 }
 
 async function exportarSuspensosImagem(){
@@ -1576,7 +1599,7 @@ async function exportarSuspensosImagem(){
   const hoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
   const _logoSrc2=localStorage.getItem('triagem_logo')||LUCRALIZE_LOGO;
   const logoHtml=`<img src="${_logoSrc2}" style="height:40px;object-fit:contain;margin-right:10px;" crossorigin="anonymous">`;
-  function stBadge(sit){return sit==='EM CANCELAMENTO'?'<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#fee2e2;color:#991b1b;">Em Cancelamento</span>':'<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e;">Suspenso</span>';}
+  function stBadge(sit){return sit==='EM CANCELAMENTO'?'<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#ffe0e4;color:#F62642;">Em Cancelamento</span>':'<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#d8f1f4;color:#0C7488;">Suspenso</span>';}
   function buildRows(list){return list.map((c,i)=>`<tr style="background:${i%2===0?'#f7fafd':'#fff'};"><td style="padding:5px 10px;font-size:11px;color:#64748b;border-bottom:1px solid #e8f4f7;">${c.cnpj}</td><td style="padding:5px 10px;font-size:12px;border-bottom:1px solid #e8f4f7;">${c.razaoSocial}</td><td style="padding:5px 10px;border-bottom:1px solid #e8f4f7;">${stBadge(c.situacao)}</td></tr>`).join('');}
   function buildSection(label,list,nSusp,color){
     if(!list.length)return'';
@@ -1764,6 +1787,7 @@ function atualizarLogo(){
 // ==================== INIT ====================
 renderPainel();
 atualizarLogo();
+refreshIcons();
 initAutoSave();
 gateCheckSession();
 (function(){

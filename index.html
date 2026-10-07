@@ -568,6 +568,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
         </div>
       </div>
       <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;"><i data-lucide="refresh-cw"></i>Lista em tempo real, lida diretamente do SharePoint (Checklist Documentos). Mostra apenas clientes com Documentos Recebidos = "Não". Marcar cada item ou o checkbox final grava direto no SharePoint.</div>
+      <div id="docs-ck-banner"></div>
       <div class="card">
         <div class="card-body">
           <div class="table-wrap">
@@ -578,6 +579,7 @@ tr.row-success:hover { background: #dcfce7 !important; }
                   <th>Razão Social</th>
                   <th>Divisão</th>
                   <th>Progresso</th>
+                  <th>Implantação</th>
                   <th></th>
                   <th>Documentos Recebidos</th>
                 </tr>
@@ -2616,6 +2618,10 @@ async function exportarCertsExcel(){
 })();
 
 // ==================== ONBOARDING (Tech) — dados em CentralTriagem.xlsx ====================
+// Módulo antigo de onboarding (planilha + lista de contratos). Desligado: o onboarding agora vive no Recebimento de Documentos.
+// Para religar, troque para true (o código continua todo aqui).
+const OB_LEGACY_ENABLED=false;
+if(!OB_LEGACY_ENABLED){delete CT_PAGE_MODULE['ob-tech'];delete CT_PAGE_MODULE['ob-cont'];}
 const OB_T='tblOnboardings',OB_H='tblOnbHistorico';
 const OB_COLS=['Id','Divisao','Cliente','Situacao','Status','CriadoEm','AberturaOk','AberturaOkEm','DocsOk','ColabA','ColabAEmail','ColabB','ColabBEmail','ColabC','ColabCEmail','Tel','EmailCliente','Competencia','Condicao','Obs','CriadoPor','DadosJson','DadosJson2'];
 const OB_HCOLS=['Id','OnboardingId','Em','Usuario','Mensagem'];
@@ -3505,7 +3511,7 @@ function alOpen(id){
 
 // ── ciclo de vida ──
 async function alPoll(){
-  if(!SESSION||obBusy||document.hidden)return;
+  if(!OB_LEGACY_ENABLED||!SESSION||obBusy||document.hidden)return;
   try{
     await obLoadAll();
     for(const d of ['Tech','Contabilidade']){if(OB_SRC[d]&&ctCanAccess(d==='Tech'?'ob-tech':'ob-cont'))await obLoadContracts(d,true);}
@@ -3515,6 +3521,7 @@ async function alPoll(){
   }catch(e){console.warn('Atualização dos alertas:',e.message);}
 }
 async function obBootAlerts(){
+  if(!OB_LEGACY_ENABLED){const w=document.getElementById('bell-wrap');if(w)w.style.display='none';return;}
   alLoadState();
   const pode=ctCanAccess('ob-tech')||ctCanAccess('ob-cont');
   document.getElementById('bell-wrap').style.display=pode?'':'none';
@@ -3539,6 +3546,296 @@ document.getElementById('alert-list').addEventListener('click',ev=>{const it=ev.
 // composedPath(): o Lucide troca o <svg> clicado durante o clique, então ev.target já pode estar fora do DOM
 document.addEventListener('click',ev=>{const w=document.getElementById('bell-wrap');if(w&&!ev.composedPath().includes(w))alClose();});
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape')alClose();});
+
+
+// ==================== RECEBIMENTO + IMPLANTAÇÃO (listas "Checklist Documentos" de cada divisão) ====================
+// Mesma estrutura do Recebimento de Documentos: a Central lê os itens da lista (só os com "Documentos Recebidos" = "Não")
+// e grava direto no SharePoint. As colunas de implantação são achadas pelo NOME DE EXIBIÇÃO (sem acento/maiúscula).
+// Este bloco redefine (por vir depois) spFetchChecklist, renderDocsTable, viewDocs, checklistToggleDoc e checklistMarcarRecebido.
+const CK_STATUS=['Pendente','Em Andamento','Concluído'];
+const CK_COMMON={cnpj:['CNPJ'],final:['Documentos Recebidos'],obs:['Observações'],hist:['Histórico']};
+// As colunas da lista são nomeadas JUNTAS, sem espaço nem acento e sem palavras de ligação (ex.: ComposicaoSaldosAtivoPassivo).
+// Por isso comparamos pela "chave": minúsculas, sem acento, sem espaços e sem de/da/do/e/...  →  "Pasta de Triagem" = PastaTriagem.
+const CK_LIGA=new Set(['de','da','do','das','dos','e','a','o','as','os','em','no','na','nos','nas','para','por','com','ao','aos']);
+function ckKey(s){return obNormTxt(s).split(' ').filter(t=>t&&!CK_LIGA.has(t)).join('');}
+function ckFind(cols,exact,contains){
+  const ks=cols.map(c=>({c,k:ckKey(c.displayName)}));
+  for(const n of exact){const k=ckKey(n);const e=ks.find(x=>x.k===k);if(e)return e.c;}
+  for(const n of (contains||[])){const k=ckKey(n);if(!k)continue;const e=ks.find(x=>x.k.includes(k));if(e)return e.c;}
+  return null;
+}
+// colunas Sim/Não (booleanas) do SharePoint devolvem true/false; as de Opção devolvem o texto "Sim"/"Não"
+function ckRead(v){if(v===true)return 'Sim';if(v===false)return 'Não';return String(v==null?'':v).trim();}
+function ckWrite(bool,v){return bool?(v==='Sim'):v;}
+const CK_CFG={
+  Contabilidade:{
+    docs:null,   // 19 documentos nas colunas fixas field_3..field_21 (CHECKLIST_DOCS), como já funciona hoje
+    tasks:[
+      {id:'dominio',name:'Cadastro Domínio'},{id:'sharepoint',name:'Cadastro SharePoint'},{id:'acessorias',name:'Cadastro Acessórias'},
+      {id:'w3',name:'Cadastro W3'},{id:'pasta',name:'Pasta de Triagem'},{id:'sieg',name:'Cadastro SIEG'},
+      {id:'reuniao',name:'Reunião de Onboarding'},{id:'cobranca',name:'Cobrança de Docs e Acessos'}],
+    groups:[{key:'C',short:'Responsável',colName:'Responsável Onboarding',col:['ResponsavelOnboarding'],role:'Todos os cadastros + Reunião + Docs',
+      tasks:['dominio','sharepoint','acessorias','w3','pasta','sieg','reuniao','cobranca']}]
+  },
+  Tech:{
+    docs:[   // 7 documentos do Tech: achados pelo nome da coluna (como estão na lista)
+      {label:'Certificado Digital',names:['CertificadoDigital']},
+      {label:'Procuração eCac',names:['ProcuracaoEcac']},
+      {label:'Acesso Portal Nacional',names:['SenhaPortalNacional']},
+      {label:'Acesso Prefeitura',names:['SenhaPrefeitura']},
+      {label:'Contrato Social e últimas alterações',names:['ContratoSocialAlteracoes']},
+      {label:'Último Balancete Encerrado',names:['UltimoBalanceteEncerrado']},
+      {label:'Login e Senha do Empregador Web',names:['SenhaEmpregadorWeb']}],
+    tasks:[
+      {id:'oneflow',name:'Cadastro OneFlow'},{id:'agenda',name:'Agendamento de Reunião'},{id:'reuniao',name:'Reunião de Onboarding'},
+      {id:'sharepoint',name:'Cadastro SharePoint'},{id:'acessorias',name:'Cadastro Acessórias'},{id:'w3',name:'Cadastro W3'},
+      {id:'pasta',name:'Pasta de Triagem'},{id:'contato',name:'Primeiro Contato',extra:['Primeiro Contato informações iniciais']},
+      {id:'cobranca',name:'Cobrança de Docs e Acessos'}],
+    groups:[
+      {key:'A',short:'OneFlow',colName:'Responsável OneFlow',col:['ResponsavelOneflow'],role:'OneFlow + Agendamento + Reunião',tasks:['oneflow','agenda','reuniao']},
+      {key:'B',short:'Cadastros',colName:'Responsável Cadastros',col:['ResponsavelCadastros'],role:'Cadastros + Primeiro Contato + Docs',tasks:['sharepoint','acessorias','w3','pasta','contato','cobranca']}]
+  }
+};
+let _ckMap={},_ckView={itemId:null,divisao:null,tab:'impl'};
+
+// ── colunas: resolve tudo pelo nome de exibição, uma vez por divisão ──
+async function ckResolve(divisao){
+  if(_ckMap[divisao])return _ckMap[divisao];
+  const{siteId,listId}=await spResolveChecklistList(divisao);
+  const cols=(await obGraphAll(`/sites/${siteId}/lists/${listId}/columns`)).filter(c=>!c.hidden&&!c.readOnly);
+  const cfg=CK_CFG[divisao],m={siteId,listId,cols,missing:[]};
+  m.cnpj=ckFind(cols,CK_COMMON.cnpj)||{name:CHECKLIST_CNPJ_FIELD};
+  m.final=ckFind(cols,CK_COMMON.final,CK_COMMON.final)||{name:CHECKLIST_DOC_RECEBIDOS_FIELD};
+  m.final.bool=!!m.final.boolean;
+  m.obs=ckFind(cols,CK_COMMON.obs);if(!m.obs)m.missing.push('Observações');
+  m.hist=ckFind(cols,CK_COMMON.hist);if(!m.hist)m.missing.push('Histórico');
+  if(cfg.docs){
+    m.docs=[];
+    cfg.docs.forEach(d=>{const c=ckFind(cols,d.names,d.names);if(c)m.docs.push({field:c.name,label:d.label,bool:!!c.boolean});else m.missing.push(d.label);});
+  }else m.docs=CHECKLIST_DOCS.map(d=>({field:d.field,label:d.label,bool:!!(cols.find(c=>c.name===d.field)||{}).boolean}));
+  m.tasks=cfg.tasks.map(t=>{const c=ckFind(cols,[t.name].concat(t.extra||[]));if(!c)m.missing.push(t.name);return{id:t.id,name:t.name,field:c?c.name:null};});
+  m.groups=cfg.groups.map(g=>{const c=ckFind(cols,g.col);if(!c)m.missing.push(g.colName);return Object.assign({},g,{field:c?c.name:null});});
+  _ckMap[divisao]=m;
+  return m;
+}
+function ckParsePessoa(s){const t=String(s==null?'':s).trim();const m=t.match(/^(.*?)\s*<([^>]+)>$/);return m?{nome:m[1].trim(),email:m[2].trim()}:{nome:t,email:''};}
+function ckFmtPessoa(p){return p&&p.nome?(p.email?`${p.nome} <${p.email}>`:p.nome):'';}
+function ckStamp(){const n=new Date(),p=x=>String(x).padStart(2,'0');return `${p(n.getDate())}/${p(n.getMonth()+1)}/${n.getFullYear()} ${p(n.getHours())}:${p(n.getMinutes())}`;}
+function ckHistAdd(old,msg){
+  const linha=`${ckStamp()} — ${SESSION?SESSION.nome:'Sistema'} — ${msg}`;
+  let t=old?linha+'\n'+old:linha;
+  if(t.length>60000){t=t.slice(0,60000);const i=t.lastIndexOf('\n');if(i>0)t=t.slice(0,i);}   // limite da coluna de texto longo
+  return t;
+}
+function ckItem(itemId,divisao){return _checklistCache.find(c=>c.itemId===itemId&&c.divisao===divisao)||null;}
+
+// ── leitura (mesma lógica de antes: só "Documentos Recebidos" = "Não") ──
+async function spFetchChecklist(){
+  if(!_spToken)return;
+  const all=[],errors=[];
+  for(const divisao of Object.keys(SP_CONFIG.checklistLists)){
+    try{
+      const m=await ckResolve(divisao);
+      let url=`/sites/${m.siteId}/lists/${m.listId}/items?$expand=fields&$top=500`,guard=0;
+      while(url&&guard<200){
+        guard++;
+        const resp=await spGraph('GET',url,null,{'Prefer':'HonorNonIndexedQueriesWarningMayFailRandomly'});
+        (resp.value||[]).forEach(item=>{
+          const f=item.fields||{};
+          const recebido=ckRead(f[m.final.name]);
+          if(recebido!=='Não')return;
+          const docs={};m.docs.forEach(d=>{docs[d.field]=ckRead(f[d.field])||'Não';});
+          const tasks={};m.tasks.forEach(t=>{const v=t.field?String(f[t.field]||'').trim():null;tasks[t.id]=t.field?(CK_STATUS.includes(v)?v:'Pendente'):null;});
+          const collabs={};m.groups.forEach(g=>{collabs[g.key]=ckParsePessoa(g.field?f[g.field]:'');});
+          all.push({itemId:item.id,divisao,cnpj:f[m.cnpj.name]||'',razaoSocial:f['Title']||'—',docs,docRecebidos:recebido,tasks,collabs,
+            obs:m.obs?String(f[m.obs.name]||''):'',hist:m.hist?String(f[m.hist.name]||''):''});
+        });
+        url=resp['@odata.nextLink']?resp['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0',''):null;
+      }
+    }catch(e){
+      console.error(`Erro ao buscar checklist (${divisao}):`,e);
+      errors.push(`${divisao}: ${e.message}`);
+    }
+  }
+  _checklistCache=all;
+  renderDocsTable();updateBadges();ckRenderBanner();
+  if(errors.length)toast('Erro ao sincronizar checklist de documentos — '+errors.join(' | '),'error');
+}
+
+// ── faixa de diagnóstico: colunas que faltam nas listas ──
+function ckRenderBanner(){
+  const box=document.getElementById('docs-ck-banner');if(!box)return;
+  const partes=Object.keys(_ckMap).map(d=>{const m=_ckMap[d];if(!m.missing.length)return '';
+    return `<div class="ct-msg ct-warnmsg"><b>${ctEsc(d)}:</b> não encontrei estas colunas na lista "Checklist Documentos": ${m.missing.map(x=>ctEsc(x)).join(', ')}. Crie-as com exatamente esses nomes.
+      <details class="ct-info"><summary>Colunas encontradas na lista</summary><div class="ct-det">${m.cols.map(c=>ctEsc(c.displayName)).join(' · ')}</div></details></div>`;}).join('');
+  box.innerHTML=partes?`<div class="ct-box ct-box-warn" style="margin-bottom:14px;">${partes}</div>`:'';
+}
+
+// ── tabela ──
+function ckTasksProg(d){
+  const ids=Object.keys(d.tasks).filter(k=>d.tasks[k]!==null);
+  if(!ids.length)return null;
+  return{feitos:ids.filter(k=>d.tasks[k]==='Concluído').length,total:ids.length};
+}
+function renderDocsTable(){
+  const search=document.getElementById('docs-search').value.toLowerCase(),divF=document.getElementById('docs-filter-div').value;
+  let data=_checklistCache.slice();
+  if(search)data=data.filter(d=>String(d.cnpj).toLowerCase().includes(search)||d.razaoSocial.toLowerCase().includes(search));
+  if(divF)data=data.filter(d=>d.divisao===divF);
+  data.sort((a,b)=>{if(a.divisao!==b.divisao)return a.divisao==='Contabilidade'?-1:1;return a.razaoSocial.localeCompare(b.razaoSocial,'pt-BR');});
+  const tbody=document.getElementById('docs-table-body'),empty=document.getElementById('docs-empty');
+  if(!data.length){tbody.innerHTML='';empty.style.display='';return;}
+  empty.style.display='none';
+  tbody.innerHTML=data.map(d=>{
+    const total=Object.keys(d.docs).length,feitos=Object.values(d.docs).filter(v=>v==='Sim').length,ip=ckTasksProg(d);
+    const impl=ip?`<span class="badge ${ip.feitos===ip.total?'badge-success':ip.feitos>0?'badge-info':'badge-warning'}" id="impl-progress-${d.itemId}">${ip.feitos}/${ip.total}</span>`:'<span class="text-gray">—</span>';
+    return `<tr><td><code style="font-size:12px;">${ctEsc(d.cnpj)}</code></td><td><strong>${ctEsc(d.razaoSocial)}</strong></td><td><span class="badge ${d.divisao==='Contabilidade'?'badge-info':'badge-purple'}">${d.divisao}</span></td><td><span class="badge ${feitos===total?'badge-success':'badge-warning'}" id="docs-progress-${d.itemId}">${feitos}/${total}</span></td><td>${impl}</td><td><button class="btn btn-outline btn-sm" onclick="viewDocs('${d.itemId}','${d.divisao}')">Ver Checklist</button></td><td style="text-align:center;"><input type="checkbox" title="Marcar Documentos Recebidos como Sim" onchange="checklistMarcarRecebido('${d.itemId}','${d.divisao}',this)"></td></tr>`;
+  }).join('');
+}
+
+// ── gravação: campo(s) + linha de histórico numa única chamada ──
+async function ckPatch(itemId,divisao,fields,msg){
+  const m=await ckResolve(divisao),body=Object.assign({},fields);let novaHist=null;
+  if(m.hist&&msg){
+    try{
+      const cur=await spGraph('GET',`/sites/${m.siteId}/lists/${m.listId}/items/${itemId}?$expand=fields($select=${m.hist.name})`);
+      novaHist=ckHistAdd(String((cur.fields||{})[m.hist.name]||''),msg);
+      body[m.hist.name]=novaHist;
+    }catch(e){console.warn('Histórico não lido; gravando só o campo:',e.message);}
+  }
+  await spGraph('PATCH',`/sites/${m.siteId}/lists/${m.listId}/items/${itemId}/fields`,body);
+  const it=ckItem(itemId,divisao);if(it&&novaHist!==null)it.hist=novaHist;
+}
+async function checklistToggleDoc(itemId,divisao,fieldName,checkboxEl){
+  const valor=checkboxEl.checked?'Sim':'Não';
+  checkboxEl.disabled=true;
+  try{
+    const m=await ckResolve(divisao),doc=m.docs.find(d=>d.field===fieldName);
+    await ckPatch(itemId,divisao,{[fieldName]:ckWrite(doc&&doc.bool,valor)},`[${doc?doc.label:fieldName}] → ${valor==='Sim'?'Recebido':'Pendente'}`);
+    const item=ckItem(itemId,divisao);if(item)item.docs[fieldName]=valor;
+    renderDocsTable();
+    const progEl=document.getElementById(`docs-progress-${itemId}`);
+    if(item&&progEl)progEl.textContent=`${Object.values(item.docs).filter(v=>v==='Sim').length}/${Object.keys(item.docs).length}`;
+    if(_ckView.tab==='hist')ckRenderModal();
+  }catch(e){
+    console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
+    checkboxEl.checked=!checkboxEl.checked;
+  }finally{checkboxEl.disabled=false;}
+}
+async function checklistMarcarRecebido(itemId,divisao,checkboxEl){
+  if(checkboxEl)checkboxEl.disabled=true;
+  try{
+    const m=await ckResolve(divisao);
+    await ckPatch(itemId,divisao,{[m.final.name]:ckWrite(m.final.bool,'Sim')},'[Documentos Recebidos] marcado como Sim — o cliente sai da lista da Central.');
+    _checklistCache=_checklistCache.filter(c=>!(c.itemId===itemId&&c.divisao===divisao));
+    closeModal('modal-view-docs');
+    renderDocsTable();updateBadges();
+    toast('Documentação marcada como recebida!');
+  }catch(e){
+    console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
+    if(checkboxEl){checkboxEl.checked=false;checkboxEl.disabled=false;}
+  }
+}
+async function ckSetTask(itemId,divisao,taskId,valor,selEl){
+  const it=ckItem(itemId,divisao);if(!it)return;
+  const m=await ckResolve(divisao),t=m.tasks.find(x=>x.id===taskId);if(!t||!t.field)return;
+  const antigo=it.tasks[taskId];if(antigo===valor)return;
+  if(selEl)selEl.disabled=true;
+  try{
+    await ckPatch(itemId,divisao,{[t.field]:valor},`[${t.name}] ${antigo} → ${valor}`);
+    it.tasks[taskId]=valor;
+  }catch(e){
+    console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
+  }finally{renderDocsTable();ckRenderModal();}
+}
+async function ckSetCollab(itemId,divisao,key,email){
+  const it=ckItem(itemId,divisao);if(!it)return;
+  const m=await ckResolve(divisao),g=m.groups.find(x=>x.key===key);if(!g||!g.field)return;
+  const u=email?obCollabOptions().find(x=>x.email.toLowerCase()===email.toLowerCase()):null;
+  const novo=u?{nome:u.nome,email:u.email}:{nome:'',email:''},cur=it.collabs[key]||{nome:'',email:''};
+  if(cur.nome===novo.nome&&cur.email===novo.email)return;
+  try{
+    await ckPatch(itemId,divisao,{[g.field]:ckFmtPessoa(novo)},`Colaborador (${g.short}): "${cur.nome||'—'}" → "${novo.nome||'—'}"`);
+    it.collabs[key]=novo;
+    if(novo.nome)showTeamsToast(`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pelo cliente ${it.razaoSocial} (${divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);
+  }catch(e){
+    console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
+  }finally{ckRenderModal();}
+}
+async function ckSaveObs(itemId,divisao){
+  const it=ckItem(itemId,divisao),m=await ckResolve(divisao),el=document.getElementById('ck-obs');
+  if(!it||!m.obs||!el)return;
+  const val=el.value;if(val===it.obs)return;
+  try{
+    await ckPatch(itemId,divisao,{[m.obs.name]:val},'Observações atualizadas.');
+    it.obs=val;toast('Observações salvas.');
+  }catch(e){console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');}
+  finally{ckRenderModal();}
+}
+
+// ── modal "Ver Checklist" com abas: Implantação | Documentos | Histórico ──
+function viewDocs(itemId,divisao){
+  const d=ckItem(itemId,divisao);if(!d)return;
+  document.getElementById('modal-view-docs-title').textContent=`${d.razaoSocial} — ${d.cnpj}`;
+  _ckView={itemId,divisao,tab:'impl'};
+  ckRenderModal();
+  openModal('modal-view-docs');
+}
+async function ckRenderModal(){
+  const d=ckItem(_ckView.itemId,_ckView.divisao);if(!d)return;
+  const m=await ckResolve(d.divisao);
+  const tabs=[['impl','Implantação'],['docs','Documentos'],['hist','Histórico']];
+  let pane='';
+  if(_ckView.tab==='impl')pane=ckPaneImpl(d,m);else if(_ckView.tab==='docs')pane=ckPaneDocs(d,m);else pane=ckPaneHist(d,m);
+  document.getElementById('modal-view-docs-body').innerHTML=
+    `<div style="margin-bottom:10px;"><span class="badge ${d.divisao==='Contabilidade'?'badge-info':'badge-purple'}">${d.divisao}</span></div>
+     <div class="ob-tabs">${tabs.map(([k,l])=>`<div class="ob-tab ${_ckView.tab===k?'active':''}" data-ck-tab="${k}">${l}</div>`).join('')}</div>
+     <div style="padding-top:14px;">${pane}</div>`;
+  refreshIcons();
+}
+function ckPaneImpl(d,m){
+  if(!m.tasks.some(t=>t.field)&&!m.groups.some(g=>g.field))
+    return `<div class="ct-msg ct-warnmsg">As colunas de implantação ainda não existem nesta lista. Crie: ${m.groups.map(g=>ctEsc(g.colName)).concat(m.tasks.map(t=>ctEsc(t.name))).join(', ')}.</div>`;
+  const opts=obCollabOptions();
+  return m.groups.map(g=>{
+    const tasks=m.tasks.filter(t=>g.tasks.includes(t.id)),cur=d.collabs[g.key]||{nome:'',email:''};
+    const ativos=tasks.filter(t=>t.field),feitos=ativos.filter(t=>d.tasks[t.id]==='Concluído').length;
+    const has=cur.email&&opts.some(u=>u.email.toLowerCase()===cur.email.toLowerCase());
+    const sel=g.field?`<select class="form-control" style="max-width:240px;" data-ck="collab" data-g="${g.key}"><option value="">(Não designado)</option>${(!has&&cur.nome)?`<option value="${ctEsc(cur.email)}" selected>${ctEsc(cur.nome)}</option>`:''}${opts.map(u=>`<option value="${ctEsc(u.email)}" ${cur.email&&u.email.toLowerCase()===cur.email.toLowerCase()?'selected':''}>${ctEsc(u.nome)}</option>`).join('')}</select>`
+      :`<span class="text-gray" style="font-size:12px;">coluna "${ctEsc(g.colName)}" não encontrada</span>`;
+    return `<div class="cblock"><div class="cblock-hdr"><div style="flex:1;">${sel}<div class="crole" style="margin-top:4px;">${ctEsc(g.role)}</div></div><div class="cprog">${feitos}/${ativos.length} concluídos</div></div>
+      ${tasks.map(t=>{
+        const v=d.tasks[t.id],sc=v==='Concluído'?'conc':v==='Em Andamento'?'and':'pend';
+        return `<div class="trow"><div class="trow-top"><div class="tname">${ctEsc(t.name)}</div>${t.field
+          ?`<select class="ssel ${sc}" data-ck="task" data-t="${t.id}">${CK_STATUS.map(s=>`<option ${v===s?'selected':''}>${s}</option>`).join('')}</select>`
+          :'<span class="text-gray" style="font-size:11px;">coluna não encontrada</span>'}</div></div>`;}).join('')}</div>`;
+  }).join('');
+}
+function ckPaneDocs(d,m){
+  const row=doc=>{const checked=d.docs[doc.field]==='Sim';return `<div class="checklist-item"><label style="display:flex;align-items:center;gap:10px;width:100%;cursor:pointer;"><input type="checkbox" ${checked?'checked':''} data-ck="doc" data-f="${ctEsc(doc.field)}"><span class="checklist-label">${ctEsc(doc.label)}</span></label></div>`;};
+  return `<div class="checklist-group">${m.docs.map(row).join('')}</div>`;
+}
+function ckPaneHist(d,m){
+  const obs=m.obs?`<div class="ob-sec"><div class="ob-sec-t">Observações</div><textarea class="form-control" id="ck-obs" rows="3" placeholder="Observações do cliente...">${ctEsc(d.obs)}</textarea><button class="btn btn-primary btn-sm" style="margin-top:8px;" data-ck="obs">Salvar observação</button></div>`
+    :'<div class="ct-msg ct-warnmsg">A coluna "Observações" não existe nesta lista.</div>';
+  const linhas=String(d.hist||'').split('\n').filter(x=>x.trim());
+  const hist=m.hist?(linhas.length?linhas.map(l=>`<div class="log-item hist">${ctEsc(l)}</div>`).join(''):'<div class="text-gray" style="padding:8px 0;">Sem registros ainda.</div>')
+    :'<div class="ct-msg ct-warnmsg">A coluna "Histórico" não existe nesta lista, então as alterações não ficam registradas.</div>';
+  return obs+`<div class="ob-sec-t" style="margin-top:12px;">Histórico (mais novo primeiro)</div>${hist}`;
+}
+document.getElementById('modal-view-docs-body').addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-ck-tab]');
+  if(t){_ckView.tab=t.dataset.ckTab;ckRenderModal();return;}
+  const b=ev.target.closest('[data-ck="obs"]');
+  if(b)ckSaveObs(_ckView.itemId,_ckView.divisao);
+});
+document.getElementById('modal-view-docs-body').addEventListener('change',ev=>{
+  const el=ev.target.closest('[data-ck]');if(!el)return;
+  const k=el.dataset.ck,id=_ckView.itemId,dv=_ckView.divisao;
+  if(k==='task')ckSetTask(id,dv,el.dataset.t,el.value,el);
+  else if(k==='collab')ckSetCollab(id,dv,el.dataset.g,el.value);
+  else if(k==='doc')checklistToggleDoc(id,dv,el.dataset.f,el);
+});
 
 
 // ==================== INIT ====================

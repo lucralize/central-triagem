@@ -18,7 +18,7 @@
   --accent:#0C7488; --accent-strong:#095668; --accent-soft:#E1F0F2;
   --chrome:#0E1428; --chrome-strong:#080B15; --brand-cyan:#92DCE5;
   --success-ink:#2F7D5D; --success-bg:#E4F3EC; --success-bg-2:#CFE9DC; --success-line:#BFE3D1;
-  --warning-ink:#B4650B; --warning-bg:#FBEEE0; --warning-bg-2:#F7DFC2; --warning-line:#F1D3AE;
+  --warning-ink:#96520A; --warning-bg:#FBEEE0; --warning-bg-2:#F7DFC2; --warning-line:#F1D3AE;
   --danger-ink:#D81A36;  --danger-bg:#FDE9EC;  --danger-bg-2:#FAD3DA;  --danger-line:#F6C3CC;
   --info-ink:#0C7488;    --info-bg:#E1F0F2;    --info-line:#BADFE5;
   --border:#DEE4E8;
@@ -513,6 +513,9 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
 .ck-info .lbl { display: block; font-size: 10px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; }
 .ck-info .val { display: block; font-size: 13px; color: var(--ink); word-break: break-word; }
 @media (max-width: 640px) { .ck-info { grid-template-columns: 1fr 1fr; } }
+.sd-chip { display: inline-block; margin-left: 8px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--info-bg); color: var(--info-ink); }
+.sd-chip-amber { background: var(--warning-bg); color: var(--warning-ink); }
+.sd-chip-red { background: var(--danger-bg); color: var(--danger-ink); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -576,9 +579,14 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
       <span class="icon"><i data-lucide="rocket"></i></span> Tech
       <span class="nav-badge" id="badge-certs-tech" style="display:none"></span>
     </div>
-    <div class="nav-item" onclick="goTo('saida')" id="nav-saida">
-      <span class="icon"><i data-lucide="log-out"></i></span> Saída de Clientes
-      <span class="nav-badge" id="badge-saida" style="display:none"></span>
+    <div class="nav-subhead" id="nav-saida-head" style="display:none"><i data-lucide="log-out"></i> Saída de Clientes</div>
+    <div class="nav-item nav-sub" onclick="goTo('saida-cont')" id="nav-saida-cont" style="display:none">
+      <span class="icon"><i data-lucide="calculator"></i></span> Contabilidade
+      <span class="nav-badge" id="badge-saida-cont" style="display:none"></span>
+    </div>
+    <div class="nav-item nav-sub" onclick="goTo('saida-tech')" id="nav-saida-tech" style="display:none">
+      <span class="icon"><i data-lucide="rocket"></i></span> Tech
+      <span class="nav-badge" id="badge-saida-tech" style="display:none"></span>
     </div>
     <div class="nav-item" onclick="goTo('suspensos')" id="nav-suspensos">
       <span class="icon"><i data-lucide="circle-pause"></i></span> Suspenso/Em Cancelamento
@@ -758,16 +766,12 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
       <div class="flex-between mb-16">
         <div class="search-bar" style="flex:1;margin-bottom:0;">
           <input type="text" class="form-control" id="saida-search" placeholder="Buscar por CNPJ ou Razão Social..." oninput="renderSaidaTable()">
-          <select class="form-control" style="width:180px;" id="saida-filter-div" onchange="renderSaidaTable()">
-            <option value="">Todas as divisões</option>
-            <option>Contabilidade</option>
-            <option>Tech</option>
-          </select>
           <select class="form-control" style="width:180px;" id="saida-filter-motivo" onchange="renderSaidaTable()">
             <option value="">Todos os motivos</option>
           </select>
         </div>
       </div>
+      <div id="saida-sd-banner"></div>
       <div class="card">
         <div class="card-body">
           <div class="table-wrap">
@@ -776,10 +780,11 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
                 <tr>
                   <th>CNPJ</th>
                   <th>Razão Social</th>
-                  <th>Divisão</th>
                   <th>Término do Contrato</th>
                   <th>Motivo da Saída</th>
-                  <th>Documentação Enviada</th>
+                  <th>Departamentos</th>
+                  <th></th>
+                  <th id="saida-th-doc">Documentação Enviada</th>
                 </tr>
               </thead>
               <tbody id="saida-table-body"></tbody>
@@ -993,6 +998,20 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-ob-new')">Cancelar</button>
       <button class="btn btn-primary" id="ob-n-save" onclick="obSaveNew()"><i data-lucide="check"></i> Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SAÍDA DE CLIENTES -->
+<div class="modal-overlay" id="modal-saida">
+  <div class="modal" style="max-width:800px;">
+    <div class="modal-header">
+      <h3 id="modal-saida-title">Saída de Cliente</h3>
+      <button class="modal-close" onclick="closeModal('modal-saida')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-saida-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-saida')">Fechar</button>
     </div>
   </div>
 </div>
@@ -1425,11 +1444,11 @@ const CT_USERS_FILE={
   cols:['nome','email','cargo','tipo','ativo','modulos','criadoEm']
 };
 const CT_TIPOS=['Administrador','Colaborador'];
-const CT_MODULES=['Onboarding Contabilidade','Onboarding Tech','Certificados Contabilidade','Certificados Tech','Saída de Clientes','Suspensão / Cancelamento','Usuários'];
+const CT_MODULES=['Onboarding Contabilidade','Onboarding Tech','Certificados Contabilidade','Certificados Tech','Saída Contabilidade','Saída Tech','Suspensão / Cancelamento','Usuários'];
 // Os dois primeiros módulos são o acesso às divisões de "Implantação / Documentos". Os nomes gravados na planilha não mudam.
-const CT_MODULE_LABEL={'Onboarding Contabilidade':'Implantação / Documentos — Contabilidade','Onboarding Tech':'Implantação / Documentos — Tech','Certificados Contabilidade':'Certificados / eCac — Contabilidade','Certificados Tech':'Certificados / eCac — Tech'};
+const CT_MODULE_LABEL={'Onboarding Contabilidade':'Implantação / Documentos — Contabilidade','Onboarding Tech':'Implantação / Documentos — Tech','Certificados Contabilidade':'Certificados / eCac — Contabilidade','Certificados Tech':'Certificados / eCac — Tech','Saída Contabilidade':'Saída de Clientes — Contabilidade','Saída Tech':'Saída de Clientes — Tech'};
 function ctModLabel(m){return CT_MODULE_LABEL[m]||m;}
-const CT_PAGE_MODULE={'certs-cont':'Certificados Contabilidade','certs-tech':'Certificados Tech','docs-cont':'Onboarding Contabilidade','docs-tech':'Onboarding Tech','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade',saida:'Saída de Clientes',suspensos:'Suspensão / Cancelamento',usuarios:'Usuários'};
+const CT_PAGE_MODULE={'certs-cont':'Certificados Contabilidade','certs-tech':'Certificados Tech','docs-cont':'Onboarding Contabilidade','docs-tech':'Onboarding Tech','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade','saida-cont':'Saída Contabilidade','saida-tech':'Saída Tech',suspensos:'Suspensão / Cancelamento',usuarios:'Usuários'};
 const CT_LOGOUT_FLAG='ct_logged_out';
 const CT_RECENT_MS=5*60*1000;
 let SESSION=null,CT_USERS=[],ctUsersError='',ctFile=null,ctQueue=Promise.resolve(),ctRecent={},ctEditing=null;
@@ -1439,10 +1458,12 @@ function ctEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;
 function ctRank(t){return t==='Administrador'?2:1;}
 function ctIsAdminTipo(t){return t==='Administrador';}
 // "Certificados / eCac" (nome antigo) vale para as duas divisões: quem já tinha esse acesso não perde nada
+// nomes antigos de módulo valem para as duas divisões: quem já tinha o acesso não perde nada
+const CT_LEGACY_MODULES={'Certificados / eCac':['Certificados Contabilidade','Certificados Tech'],'Saída de Clientes':['Saída Contabilidade','Saída Tech']};
 function ctSplitModules(s){
   const out=[];
   String(s||'').split(';').map(x=>x.trim()).filter(Boolean).forEach(m=>{
-    const lista=m==='Certificados / eCac'?['Certificados Contabilidade','Certificados Tech']:[m];
+    const lista=CT_LEGACY_MODULES[m]||[m];
     lista.forEach(x=>{if(!out.includes(x))out.push(x);});
   });
   return out;
@@ -1613,6 +1634,8 @@ function ctApplyPermissions(){
   });
   const sec=document.getElementById('nav-section-admin');
   if(sec)sec.style.display=ctCanAccess('usuarios')?'':'none';
+  const sh=document.getElementById('nav-saida-head');
+  if(sh)sh.style.display=(ctCanAccess('saida-cont')||ctCanAccess('saida-tech'))?'':'none';
   const ch=document.getElementById('nav-certs-head');
   if(ch)ch.style.display=(ctCanAccess('certs-cont')||ctCanAccess('certs-tech'))?'':'none';
   const dh=document.getElementById('nav-docs-head');
@@ -2075,25 +2098,26 @@ function dbSave(k,item){
 function dbDelete(k,id){dbSet(k,dbGet(k).filter(i=>i.id!==id));}
 
 // ==================== NAVIGATION ====================
-const pages={painel:'Painel Geral',documentos:'Implantação / Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento',usuarios:'Usuários','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade','docs-cont':'Implantação / Documentos — Contabilidade','docs-tech':'Implantação / Documentos — Tech','certs-cont':'Certificados / eCac — Contabilidade','certs-tech':'Certificados / eCac — Tech'};
-const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Implantação e checklist de documentos por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento',usuarios:'Cadastro e permissões de acesso','ob-tech':'Clientes em implantação na Lucralize Tech','ob-cont':'Clientes em implantação na Lucralize Contabilidade','docs-cont':'Implantação e checklist de documentos dos clientes da Contabilidade','docs-tech':'Implantação e checklist de documentos dos clientes do Tech','certs-cont':'Vencimentos e alertas dos clientes da Contabilidade','certs-tech':'Vencimentos e alertas dos clientes do Tech'};
+const pages={painel:'Painel Geral',documentos:'Implantação / Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento',usuarios:'Usuários','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade','docs-cont':'Implantação / Documentos — Contabilidade','docs-tech':'Implantação / Documentos — Tech','certs-cont':'Certificados / eCac — Contabilidade','certs-tech':'Certificados / eCac — Tech','saida-cont':'Saída de Clientes — Contabilidade','saida-tech':'Saída de Clientes — Tech'};
+const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Implantação e checklist de documentos por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento',usuarios:'Cadastro e permissões de acesso','ob-tech':'Clientes em implantação na Lucralize Tech','ob-cont':'Clientes em implantação na Lucralize Contabilidade','docs-cont':'Implantação e checklist de documentos dos clientes da Contabilidade','docs-tech':'Implantação e checklist de documentos dos clientes do Tech','certs-cont':'Vencimentos e alertas dos clientes da Contabilidade','certs-tech':'Vencimentos e alertas dos clientes do Tech','saida-cont':'Clientes da Contabilidade em cancelamento','saida-tech':'Clientes do Tech em cancelamento'};
 let currentPage='painel', currentEditId=null, alertaCertId=null, alertaTipo=null;
 
 function refreshIcons(){ try{ if(window.lucide&&lucide.createIcons)lucide.createIcons(); }catch(e){ console.warn('Lucide:',e); } }
 function goTo(page) {
   if(page==='documentos')page=ckDocsDefault();   // atalho antigo: abre a primeira seção permitida
   if(page==='certificados')page=ckCertsDefault();
+  if(page==='saida')page=sdDefault();
   if(!ctCanAccess(page)){ toast('Você não tem acesso a este módulo.','error'); return; }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const pg=document.getElementById('page-'+(page==='ob-tech'||page==='ob-cont'?'ob':page==='docs-cont'||page==='docs-tech'?'documentos':page==='certs-cont'||page==='certs-tech'?'certificados':page));
+  const pg=document.getElementById('page-'+(page==='ob-tech'||page==='ob-cont'?'ob':page==='docs-cont'||page==='docs-tech'?'documentos':page==='certs-cont'||page==='certs-tech'?'certificados':page==='saida-cont'||page==='saida-tech'?'saida':page));
   const nv=document.getElementById('nav-'+page);
   if(pg) pg.classList.add('active');
   if(nv) nv.classList.add('active');
   document.getElementById('page-title').textContent=pages[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   currentPage=page;
-  const fns={painel:renderPainel,'docs-cont':()=>ckSwitch('Contabilidade'),'docs-tech':()=>ckSwitch('Tech'),'certs-cont':()=>ckCertsSwitch('Contabilidade'),'certs-tech':()=>ckCertsSwitch('Tech'),saida:renderSaidaTable,suspensos:renderSuspTable,usuarios:ctOpenUsersPage,'ob-tech':()=>obSwitch('Tech'),'ob-cont':()=>obSwitch('Contabilidade')};
+  const fns={painel:renderPainel,'docs-cont':()=>ckSwitch('Contabilidade'),'docs-tech':()=>ckSwitch('Tech'),'certs-cont':()=>ckCertsSwitch('Contabilidade'),'certs-tech':()=>ckCertsSwitch('Tech'),'saida-cont':()=>sdSwitch('Contabilidade'),'saida-tech':()=>sdSwitch('Tech'),suspensos:renderSuspTable,usuarios:ctOpenUsersPage,'ob-tech':()=>obSwitch('Tech'),'ob-cont':()=>obSwitch('Contabilidade')};
   if(fns[page]) fns[page]();
   if(page==='certs-cont'||page==='certs-tech') setTimeout(verificarDispatchAutomatico,400);
   refreshIcons();
@@ -2112,7 +2136,8 @@ function updateBadges(){
   const v30=c=>{const d=daysDiff(c.vencimento);return d!==null&&d>=0&&d<=30;};
   setBadge('badge-certs-cont',certs.filter(c=>c.divisao==='Contabilidade'&&v30(c)).length);
   setBadge('badge-certs-tech',certs.filter(c=>c.divisao==='Tech'&&v30(c)).length);
-  setBadge('badge-saida',_saidaCache.length);
+  setBadge('badge-saida-cont',_saidaCache.filter(s=>s.divisao==='Contabilidade').length);
+  setBadge('badge-saida-tech',_saidaCache.filter(s=>s.divisao==='Tech').length);
   setBadge('badge-susp',_clientStatusCache.filter(c=>c.situacao==='SUSPENSO'||c.situacao==='EM CANCELAMENTO').length);
   obUpdateBadges();
 }
@@ -2125,7 +2150,7 @@ function renderPainel(){
   const cv30=certs.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d>15&&d<=30;});
   const pv15=certs.filter(c=>{const d=daysDiff(c.procVenc);return d!==null&&d>=0&&d<=15;});
   const pv30=certs.filter(c=>{const d=daysDiff(c.procVenc);return d!==null&&d>15&&d<=30;});
-  const sp=_saidaCache;
+  const sp=_saidaCache.filter(s=>s.docStatus!=='Sim');   // documentação ainda pendente (urgente); o total em cancelamento aparece no card de Saída
   const sa=_clientStatusCache.filter(c=>c.situacao==='SUSPENSO');
   const sec=_clientStatusCache.filter(c=>c.situacao==='EM CANCELAMENTO');
   const dp=_checklistCache;
@@ -2160,6 +2185,7 @@ function renderPainel(){
     <div class="flex-between text-sm" style="padding:3px 0;"><span>Em Cancelamento</span><span class="badge badge-danger">${sec.length}</span></div>
     <div class="divider"></div>
     <p class="text-sm font-bold" style="margin-bottom:6px;display:flex;align-items:center;gap:6px;"><i data-lucide="log-out" class="ico-teal" style="width:14px;height:14px"></i> Saída de Clientes</p>
+    <div class="flex-between text-sm" style="padding:3px 0;"><span>Em cancelamento</span><span class="badge badge-danger">${_saidaCache.length}</span></div>
     <div class="flex-between text-sm" style="padding:3px 0;"><span>Documentação pendente</span><span class="badge badge-danger">${sp.length}</span></div>`;
   refreshIcons();
   updateBadges();
@@ -4001,6 +4027,270 @@ openCertModal=function(id=null){
   sel.innerHTML=permitidas.map(d=>`<option>${d}</option>`).join('');
   if(atual)sel.value=atual;
 };
+
+// ==================== SAÍDA DE CLIENTES por divisão, com departamentos ====================
+// Cada seção (Contabilidade, Tech) tem botão e acesso próprios. O cliente aparece enquanto a "situação do pedido de cancelamento"
+// for "Em Cancelamento"; qualquer outro status tira da lista. Os 4 departamentos, o responsável e o histórico são colunas da lista
+// de cancelamento, achadas pelo nome (Societario, DepartamentoPessoal, Fiscal, Contabil, Responsavel, Historico).
+// Este bloco redefine (por vir depois) spFetchSaidaClientes, renderSaidaTable e spMarcarDocEnviada.
+const SD_DEPS=[
+  {id:'societario',label:'Societário',names:['Societario']},
+  {id:'dp',label:'Departamento Pessoal',names:['DepartamentoPessoal']},
+  {id:'fiscal',label:'Fiscal',names:['Fiscal']},
+  {id:'contabil',label:'Contábil',names:['Contabil']}
+];
+const SD_COMMON={resp:['Responsavel'],hist:['Historico']};
+const SD_PRAZO_CONTABIL_DIAS=90;            // prazo do Contábil: 90 dias corridos após o "Criado em" do item
+const SD_SITUACAO='em cancelamento';        // comparado sem diferenciar maiúsculas e acentos
+let _saidaDiv='Contabilidade',_sdMap={},_sdView={itemId:null,divisao:null,tab:'dep'},_sdLoadedAt=0;
+
+function sdCanDiv(d){return ctCanAccess(d==='Tech'?'saida-tech':'saida-cont');}
+function sdDefault(){
+  let last='';try{last=localStorage.getItem('ct_saida_div')||'';}catch(e){}
+  const d=[last,'Contabilidade','Tech'].filter(x=>x==='Tech'||x==='Contabilidade').find(sdCanDiv);
+  return d?(d==='Tech'?'saida-tech':'saida-cont'):'painel';
+}
+function sdSwitch(div){
+  _saidaDiv=div;try{localStorage.setItem('ct_saida_div',div);}catch(e){}
+  const q=document.getElementById('saida-search');if(q)q.value='';
+  const m=document.getElementById('saida-filter-motivo');if(m)m.value='';
+  renderSaidaTable();
+  if(Date.now()-_sdLoadedAt>120000)spFetchSaidaClientes();   // reabrir a seção atualiza quando a lista está velha
+}
+
+// ── colunas novas da lista de cancelamento, achadas pelo nome ──
+async function sdResolve(divisao){
+  if(_sdMap[divisao])return _sdMap[divisao];
+  const{siteId,listId}=await spResolveCancelList(divisao);
+  const cols=(await obGraphAll(`/sites/${siteId}/lists/${listId}/columns`)).filter(c=>!c.hidden&&!c.readOnly);
+  const m={siteId,listId,cols,missing:[]};
+  m.deps=SD_DEPS.map(d=>{const c=ckFind(cols,d.names);if(!c)m.missing.push(d.label);return Object.assign({},d,{field:c?c.name:null});});
+  m.resp=ckFind(cols,SD_COMMON.resp);if(!m.resp)m.missing.push('Responsável');
+  m.hist=ckFind(cols,SD_COMMON.hist);if(!m.hist)m.missing.push('Histórico');
+  _sdMap[divisao]=m;
+  return m;
+}
+function sdRenderBanner(){
+  const box=document.getElementById('saida-sd-banner');if(!box)return;
+  const partes=Object.keys(_sdMap).map(d=>{const m=_sdMap[d];if(!m.missing.length)return '';
+    return `<div class="ct-msg ct-warnmsg"><b>${ctEsc(d)}:</b> não encontrei estas colunas na lista de cancelamento: ${m.missing.map(x=>ctEsc(x)).join(', ')}. Crie-as com exatamente esses nomes.
+      <details class="ct-info"><summary>Colunas encontradas na lista</summary><div class="ct-det">${m.cols.map(c=>ctEsc(c.displayName)).join(' · ')}</div></details></div>`;}).join('');
+  box.innerHTML=partes?`<div class="ct-box ct-box-warn" style="margin-bottom:14px;">${partes}</div>`:'';
+}
+
+// ── leitura: aparece enquanto a situação do pedido for "Em Cancelamento" ──
+async function spFetchSaidaClientes(){
+  if(!_spToken)return;
+  const all=[],errors=[];
+  for(const divisao of Object.keys(SP_CONFIG.cancelamentoLists).filter(sdCanDiv)){
+    try{
+      const cfg=SP_CONFIG.cancelamentoLists[divisao];
+      const m=await sdResolve(divisao);
+      const lookupMap=await spFetchLookupTitleMap(divisao);
+      let url=`/sites/${m.siteId}/lists/${m.listId}/items?$expand=fields&$top=500`,guard=0;
+      while(url&&guard<200){
+        guard++;
+        const resp=await spGraph('GET',url,null,{'Prefer':'HonorNonIndexedQueriesWarningMayFailRandomly'});
+        (resp.value||[]).forEach(item=>{
+          const f=item.fields||{};
+          if(obNormTxt(ckRead(f[cfg.fields.situacaoPedido]))!==SD_SITUACAO)return;
+          const terminoIso=spDateToLocal(f[cfg.fields.terminoContrato]);
+          const lookupId=f[cfg.fields.razaoLookupId]?f[cfg.fields.razaoLookupId].toString():null;
+          const lk=lookupId?lookupMap[lookupId]:null;
+          const master=lookupId?_masterItemById[divisao][lookupId]:null;
+          const deps={};
+          m.deps.forEach(d=>{const v=d.field?ckRead(f[d.field]):'';deps[d.id]=d.field?(CK_STATUS.includes(v)?v:'Pendente'):null;});
+          all.push({
+            itemId:item.id,divisao,
+            cnpj:(lk&&lk.cnpj)?lk.cnpj:(master?master.cnpj:''),
+            razaoSocial:(lk&&lk.title)?lk.title:(master?master.razaoSocial:(f['Title']||'—')),
+            terminoContrato:terminoIso||'',
+            motivoSaida:ckRead(f[cfg.fields.motivoSaida]),
+            docStatus:ckRead(f[cfg.fields.docCampo])||'Não',
+            deps,
+            responsavel:ckParsePessoa(m.resp?f[m.resp.name]:''),
+            hist:m.hist?String(f[m.hist.name]||''):'',
+            criadoEm:item.createdDateTime||f.Created||''
+          });
+        });
+        url=resp['@odata.nextLink']?resp['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0',''):null;
+      }
+    }catch(e){
+      console.error(`Erro ao buscar lista de cancelamento (${divisao}):`,e);
+      errors.push(`${divisao}: ${e.message}`);
+    }
+  }
+  _saidaCache=all;_sdLoadedAt=Date.now();
+  renderSaidaTable();updateBadges();sdRenderBanner();
+  if(errors.length)toast('Erro ao sincronizar saída de clientes — '+errors.join(' | '),'error');
+}
+
+// ── tabela da divisão aberta ──
+function sdProg(c){
+  const ids=Object.keys(c.deps).filter(k=>c.deps[k]!==null);
+  return ids.length?{feitos:ids.filter(k=>c.deps[k]==='Concluído').length,total:ids.length}:null;
+}
+function renderSaidaTable(){
+  const search=document.getElementById('saida-search').value.toLowerCase(),motF=document.getElementById('saida-filter-motivo')?.value||'';
+  const doDiv=_saidaCache.filter(c=>c.divisao===_saidaDiv);
+  let data=doDiv.slice();
+  if(search)data=data.filter(c=>String(c.cnpj).toLowerCase().includes(search)||c.razaoSocial.toLowerCase().includes(search));
+  if(motF)data=data.filter(c=>c.motivoSaida===motF);
+  data.sort((a,b)=>a.razaoSocial.localeCompare(b.razaoSocial,'pt-BR'));
+  const motivoSel=document.getElementById('saida-filter-motivo');
+  if(motivoSel){
+    const motivos=[...new Set(doDiv.map(c=>c.motivoSaida).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    const atual=motivoSel.value;
+    motivoSel.innerHTML='<option value="">Todos os motivos</option>'+motivos.map(m=>`<option value="${ctEsc(m)}"${m===atual?' selected':''}>${ctEsc(m)}</option>`).join('');
+  }
+  const th=document.getElementById('saida-th-doc');if(th)th.textContent=_saidaDiv==='Tech'?'Documentação Recebida':'Documentação Enviada';
+  const tbody=document.getElementById('saida-table-body'),empty=document.getElementById('saida-empty');
+  if(!data.length){tbody.innerHTML='';empty.style.display='';const p=empty.querySelector('p');if(p)p.textContent=`Nenhum cliente em cancelamento na ${_saidaDiv==='Tech'?'Tech':'Contabilidade'}.`;return;}
+  empty.style.display='none';
+  const hoje=today();
+  tbody.innerHTML=data.map(c=>{
+    const p=sdProg(c);
+    const dep=p?`<span class="badge ${p.feitos===p.total?'badge-success':p.feitos>0?'badge-info':'badge-warning'}" id="sd-prog-${c.itemId}">${p.feitos}/${p.total}</span>`:'<span class="text-gray">—</span>';
+    const venc=c.terminoContrato&&c.terminoContrato<hoje;
+    const termino=c.terminoContrato?`<span style="${venc?'color:var(--danger-ink);font-weight:600;':''}">${fmtDate(c.terminoContrato)}${venc?' · vencido':''}</span>`:'—';
+    const sim=c.docStatus==='Sim';
+    return `<tr><td><code style="font-size:12px;">${ctEsc(c.cnpj||'—')}</code></td><td><strong>${ctEsc(c.razaoSocial)}</strong></td><td style="font-size:12px;">${termino}</td><td>${ctEsc(c.motivoSaida||'—')}</td><td>${dep}</td><td><button class="btn btn-outline btn-sm" onclick="sdView('${c.itemId}','${c.divisao}')">Ver</button></td><td style="text-align:center;"><input type="checkbox" ${sim?'checked disabled':''} title="Marcar documentação como ${_saidaDiv==='Tech'?'recebida':'enviada'}" onchange="spMarcarDocEnviada('${c.itemId}','${c.divisao}')"></td></tr>`;
+  }).join('');
+}
+
+// ── gravação (campo + linha de histórico numa chamada) ──
+function sdItem(itemId,divisao){return _saidaCache.find(c=>c.itemId===itemId&&c.divisao===divisao)||null;}
+async function sdPatch(it,fields,msg){
+  const m=await sdResolve(it.divisao),body=Object.assign({},fields);let novaHist=null;
+  if(m.hist&&msg){
+    try{
+      const cur=await spGraph('GET',`/sites/${m.siteId}/lists/${m.listId}/items/${it.itemId}?$expand=fields($select=${m.hist.name})`);
+      novaHist=ckHistAdd(String((cur.fields||{})[m.hist.name]||''),msg);
+      body[m.hist.name]=novaHist;
+    }catch(e){console.warn('Histórico não lido; gravando só o campo:',e.message);}
+  }
+  await spGraph('PATCH',`/sites/${m.siteId}/lists/${m.listId}/items/${it.itemId}/fields`,body);
+  if(novaHist!==null)it.hist=novaHist;
+}
+async function spMarcarDocEnviada(itemId,divisao){
+  const cfg=SP_CONFIG.cancelamentoLists[divisao];if(!cfg)return;
+  const it=sdItem(itemId,divisao);
+  try{
+    const fields={[cfg.fields.docCampo]:'Sim',[cfg.fields.situacaoPedido]:VALOR_SITUACAO_PEDIDO_CONCLUIDO};
+    if(!it)throw new Error('Cliente não encontrado na lista. Atualize a página.');
+    await sdPatch(it,fields,`[${divisao==='Tech'?'Documentação Recebida':'Documentação Enviada'}] marcada como Sim — situação alterada para "${VALOR_SITUACAO_PEDIDO_CONCLUIDO}"; o cliente sai da lista.`);
+    _saidaCache=_saidaCache.filter(s=>!(s.itemId===itemId&&s.divisao===divisao));
+    if(_sdView.itemId===itemId)closeModal('modal-saida');
+    renderSaidaTable();updateBadges();
+    toast('Documentação marcada como '+(divisao==='Tech'?'recebida':'enviada')+'!');
+  }catch(e){
+    console.error('Erro ao marcar documentação:',e);
+    toast('Erro ao salvar no SharePoint: '+e.message,'error');
+    renderSaidaTable();
+  }
+}
+async function sdSetDep(itemId,divisao,depId,valor,selEl){
+  const it=sdItem(itemId,divisao);if(!it)return;
+  const m=await sdResolve(divisao),d=m.deps.find(x=>x.id===depId);if(!d||!d.field)return;
+  const antigo=it.deps[depId];if(antigo===valor)return;
+  if(selEl)selEl.disabled=true;
+  try{
+    await sdPatch(it,{[d.field]:valor},`[${d.label}] ${antigo} → ${valor}`);
+    it.deps[depId]=valor;
+  }catch(e){
+    console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
+  }finally{renderSaidaTable();sdRenderModal();}
+}
+async function sdSetResp(itemId,divisao,email){
+  const it=sdItem(itemId,divisao);if(!it)return;
+  const m=await sdResolve(divisao);if(!m.resp)return;
+  const u=email?obCollabOptions().find(x=>x.email.toLowerCase()===email.toLowerCase()):null;
+  const novo=u?{nome:u.nome,email:u.email}:{nome:'',email:''},cur=it.responsavel||{nome:'',email:''};
+  if(cur.nome===novo.nome&&cur.email===novo.email)return;
+  try{
+    await sdPatch(it,{[m.resp.name]:ckFmtPessoa(novo)},`Responsável pela saída: "${cur.nome||'—'}" → "${novo.nome||'—'}"`);
+    it.responsavel=novo;
+    if(novo.nome)showTeamsToast(`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pela saída do cliente ${it.razaoSocial} (${divisao}). Acesse a Central de Triagem para acompanhar os departamentos.`);
+  }catch(e){
+    console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
+  }finally{sdRenderModal();}
+}
+
+// ── painel do cliente: cabeçalho + Departamentos | Histórico ──
+function sdPrazoContabil(it){
+  if(!it.criadoEm)return null;
+  const d=new Date(it.criadoEm);if(isNaN(d))return null;
+  const base=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  base.setDate(base.getDate()+SD_PRAZO_CONTABIL_DIAS);
+  const iso=`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`;
+  const hoje=new Date(),h0=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate());
+  const dias=Math.round((base-h0)/86400000);
+  return{iso,dias};
+}
+function sdView(itemId,divisao){
+  const it=sdItem(itemId,divisao);if(!it)return;
+  _sdView={itemId,divisao,tab:'dep'};
+  document.getElementById('modal-saida-title').textContent=it.razaoSocial;
+  sdRenderModal();
+  openModal('modal-saida');
+}
+function sdHeader(it){
+  const p=sdProg(it),prog=p?Math.round(p.feitos/p.total*100)+'%':'—';
+  const v=x=>x?ctEsc(x):'—';
+  const saida=it.terminoContrato?fmtDate(it.terminoContrato):'—';
+  const cad=it.criadoEm?obFmtTs(obTsFromIso(it.criadoEm)):'—';
+  const c=(l,val)=>`<div><span class="lbl">${l}</span><span class="val">${val}</span></div>`;
+  return `<div class="ck-info">${c('CNPJ',v(it.cnpj))}${c('Divisão',ctEsc(it.divisao))}${c('Responsável',v(it.responsavel&&it.responsavel.nome))}${c('Data saída',saida)}${c('Cadastrado em',cad)}${c('Progresso','<b>'+prog+'</b>')}</div>`;
+}
+async function sdRenderModal(){
+  const it=sdItem(_sdView.itemId,_sdView.divisao);if(!it)return;
+  const m=await sdResolve(it.divisao);
+  const tabs=[['dep','Departamentos'],['hist','Histórico']];
+  const pane=_sdView.tab==='dep'?sdPaneDep(it,m):sdPaneHist(it,m);
+  document.getElementById('modal-saida-body').innerHTML=
+    `<div style="margin-bottom:10px;"><span class="badge ${it.divisao==='Contabilidade'?'badge-info':'badge-purple'}">${it.divisao}</span> <span class="text-gray" style="font-size:12px;margin-left:6px;">Saída: ${it.terminoContrato?fmtDate(it.terminoContrato):'—'}</span></div>
+     ${sdHeader(it)}
+     <div class="ob-tabs">${tabs.map(([k,l])=>`<div class="ob-tab ${_sdView.tab===k?'active':''}" data-sd-tab="${k}">${l}</div>`).join('')}</div>
+     <div style="padding-top:14px;">${pane}</div>`;
+  refreshIcons();
+}
+function sdPaneDep(it,m){
+  if(!m.deps.some(d=>d.field))return `<div class="ct-msg ct-warnmsg">As colunas dos departamentos ainda não existem nesta lista. Crie: ${m.deps.map(d=>ctEsc(d.names[0])).join(', ')}.</div>`;
+  const opts=obCollabOptions(),cur=it.responsavel||{nome:'',email:''};
+  const has=cur.email&&opts.some(u=>u.email.toLowerCase()===cur.email.toLowerCase());
+  const sel=m.resp?`<select class="form-control" style="max-width:240px;" data-sd="resp"><option value="">(Não designado)</option>${(!has&&cur.nome)?`<option value="${ctEsc(cur.email)}" selected>${ctEsc(cur.nome)}</option>`:''}${opts.map(u=>`<option value="${ctEsc(u.email)}" ${cur.email&&u.email.toLowerCase()===cur.email.toLowerCase()?'selected':''}>${ctEsc(u.nome)}</option>`).join('')}</select>`
+    :'<span class="text-gray" style="font-size:12px;">coluna "Responsavel" não encontrada</span>';
+  const ativos=m.deps.filter(d=>d.field),feitos=ativos.filter(d=>it.deps[d.id]==='Concluído').length;
+  const prazo=sdPrazoContabil(it);
+  const rows=m.deps.map(d=>{
+    const v=it.deps[d.id],sc=v==='Concluído'?'conc':v==='Em Andamento'?'and':'pend';
+    let chip='';
+    if(d.id==='contabil'&&prazo){
+      const aberto=v!=='Concluído',cls=!aberto?'':prazo.dias<0?' sd-chip-red':prazo.dias<=15?' sd-chip-amber':'';
+      chip=` <span class="sd-chip${cls}" title="Prazo: ${SD_PRAZO_CONTABIL_DIAS} dias após o cadastro${aberto&&prazo.dias<0?' (vencido)':aberto&&prazo.dias<=15?` (faltam ${prazo.dias} dia${prazo.dias===1?'':'s'})`:''}">${fmtDate(prazo.iso)}${aberto&&prazo.dias<0?' · vencido':''}</span>`;
+    }
+    return `<div class="trow"><div class="trow-top"><div class="tname">${ctEsc(d.label)}${chip}</div>${d.field
+      ?`<select class="ssel ${sc}" data-sd="dep" data-d="${d.id}">${CK_STATUS.map(s=>`<option ${v===s?'selected':''}>${s}</option>`).join('')}</select>`
+      :'<span class="text-gray" style="font-size:11px;">coluna não encontrada</span>'}</div></div>`;
+  }).join('');
+  return `<div class="cblock"><div class="cblock-hdr"><div style="flex:1;">${sel}<div class="crole" style="margin-top:4px;">Responsável pela saída</div></div><div class="cprog">${feitos}/${ativos.length} concluídos</div></div>${rows}</div>`;
+}
+function sdPaneHist(it,m){
+  const linhas=String(it.hist||'').split('\n').filter(x=>x.trim());
+  if(!m.hist)return '<div class="ct-msg ct-warnmsg">A coluna "Historico" não existe nesta lista, então as alterações não ficam registradas.</div>';
+  return `<div class="ob-sec-t">Histórico (mais novo primeiro)</div>`+(linhas.length?linhas.map(l=>`<div class="log-item hist">${ctEsc(l)}</div>`).join(''):'<div class="text-gray" style="padding:8px 0;">Sem registros ainda.</div>');
+}
+document.getElementById('modal-saida-body').addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-sd-tab]');
+  if(t){_sdView.tab=t.dataset.sdTab;sdRenderModal();}
+});
+document.getElementById('modal-saida-body').addEventListener('change',ev=>{
+  const el=ev.target.closest('[data-sd]');if(!el)return;
+  const id=_sdView.itemId,dv=_sdView.divisao;
+  if(el.dataset.sd==='dep')sdSetDep(id,dv,el.dataset.d,el.value,el);
+  else if(el.dataset.sd==='resp')sdSetResp(id,dv,el.value);
+});
+
 
 // ==================== INIT ====================
 renderPainel();

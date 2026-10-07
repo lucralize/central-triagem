@@ -433,6 +433,12 @@ tr.row-success:hover { background: #dcfce7 !important; }
 
 .ct-box-err{border-left-color:var(--brand-red);}
 .ct-box-warn{border-left-color:#d97706;}
+
+.ct-info{font-size:11.5px;color:var(--brand-slate);margin:-6px 0 12px;}
+.ct-info summary{cursor:pointer;padding:4px 2px;}
+.ct-info summary b{color:var(--brand-navy);}
+.ct-det{background:#fff;border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;margin-top:4px;line-height:1.7;}
+.ct-warnmsg{color:#92400e;background:#fffbeb;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -3147,12 +3153,12 @@ const OB_SRC={
 const OB_SRC_FIELDS={
   assinado:{exact:['contrato assinado','assinado','assinatura'],contains:['assinado']},
   central:{exact:['central triagem','centraltriagem','central de triagem','na central triagem'],contains:['central triagem','centraltriagem']},
-  empresa:{exact:['empresa','razao social','nome da empresa','cliente','nome do cliente']},
-  resp:{exact:['responsavel','nome do responsavel','nome responsavel']},
-  tel:{exact:['telefone','celular','whatsapp','fone']},
+  empresa:{exact:['empresa','razao social','razao social nome','nome da empresa','cliente','nome do cliente'],contains:['razao social']},
+  resp:{exact:['responsavel','nome do responsavel','nome responsavel','representante legal'],contains:['representante legal']},
+  tel:{exact:['telefone','celular','whatsapp','fone'],contains:['telefone']},
   email:{exact:['e mail','email']},
   cond:{exact:['condicao de venda','condicao comercial','condicao']},
-  comp:{exact:['competencia','competencia inicial','inicio da competencia']},
+  comp:{exact:['competencia','competencia inicial','inicio da competencia','mes ano de contratacao do servico','mes ano de contratacao'],contains:['contratacao do servico']},
   origem:{exact:['origem']},
   situacao:{exact:['situacao atual','situacao']}
 };
@@ -3170,7 +3176,13 @@ function obOrigemKey(v){try{const j=JSON.parse(String(v[21]==null?'':v[21])+Stri
 function obTruthy(v){return v===true||/^(sim|yes|true|1|assinado)$/i.test(String(v==null?'':v).trim());}
 function obIsNao(v){return v===false||obNormTxt(v)==='nao';}
 function obNormSit(v){const n=obNormTxt(v);return n.includes('constitu')?'Constituição':'Transferência';}
-function obCompFrom(v){const m=String(v||'').match(/^(\d{4})-(\d{2})/);return m?`${m[1]}-${m[2]}`:'';}
+function obCompFrom(v){
+  const t=String(v==null?'':v).trim();let m;
+  if((m=t.match(/^(\d{4})-(\d{2})/)))return `${m[1]}-${m[2]}`;                    // 2026-11 ou 2026-11-01T...
+  if((m=t.match(/^(\d{1,2})[\/.-](\d{4})$/)))return `${m[2]}-${m[1].padStart(2,'0')}`;   // 11/2026
+  if((m=t.match(/^\d{1,2}[\/.-](\d{1,2})[\/.-](\d{4})/)))return `${m[2]}-${m[1].padStart(2,'0')}`;  // 01/11/2026
+  return '';
+}
 function obTsFromIso(iso){const d=new Date(iso);if(isNaN(d))return obNow();const p=x=>String(x).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
 // cadastros com contrato de origem só aparecem enquanto a lista de contratos os mantém visíveis
 // (se a lista não puder ser lida, mostra tudo e avisa: melhor mostrar de mais do que esconder trabalho)
@@ -3232,6 +3244,14 @@ async function obLoadContracts(div,quiet){
     st.visibleKeys=new Set(contratos.map(c=>c.key));
     st.byKey=Object.fromEntries(contratos.map(c=>[c.key,c]));
     st.loaded=true;
+    const assin=all.filter(it=>it.fields&&obTruthy(f(it,'assinado')));
+    const vazio=v=>v==null||String(v).trim()==='';
+    const hh=new Date(),p2=x=>String(x).padStart(2,'0');
+    st.info={lista:OB_SRC[div].label,total:all.length,assinados:assin.length,naCentral:contratos.length,
+      vazios:assin.filter(it=>vazio(f(it,'central'))).length,
+      removidos:assin.filter(it=>f(it,'central')===true||obNormTxt(f(it,'central'))==='sim').length,
+      hora:`${p2(hh.getHours())}:${p2(hh.getMinutes())}`,
+      cols:Object.fromEntries(Object.keys(m.map).map(k=>[k,m.map[k]?m.map[k].displayName:null]))};
     const feitos=new Set(OB[div].map(o=>o.origem&&o.origem.key).filter(Boolean));
     const novos=contratos.filter(c=>!feitos.has(c.key)).sort((x,y)=>String(x.assinadoEm).localeCompare(String(y.assinadoEm)));
     if(novos.length>OB_IMPORT_MAX)st.pending=novos;
@@ -3277,6 +3297,15 @@ function obRenderContracts(){
   if(st.loading&&!st.quiet)html='<div class="ct-box"><div class="ct-msg">Sincronizando com a lista de contratos...</div></div>';
   else if(st.error)html=`<div class="ct-box ct-box-err"><div class="ct-msg ct-err"><b>Lista de contratos:</b> ${ctEsc(st.error)}${st.colsInfo?`<br><span style="font-size:11px;">${ctEsc(st.colsInfo)}</span>`:''}</div><div style="padding:0 16px 12px;"><button class="btn btn-outline btn-sm" data-act="ct-refresh"><i data-lucide="refresh-cw"></i> Tentar de novo</button></div></div>`;
   else if(st.pending&&st.pending.length)html=`<div class="ct-box ct-box-warn"><div class="ct-msg"><b>${st.pending.length} contratos assinados</b> aguardam entrada na Central. Como são muitos de uma vez, confirme antes de criar os cadastros.</div><div style="padding:0 16px 12px;"><button class="btn btn-primary btn-sm" data-act="ct-import"><i data-lucide="download"></i> Importar ${st.pending.length} contratos</button></div></div>`;
+  if(!html&&st.info&&st.loaded){
+    const i=st.info,rot={assinado:'assinado',central:'central',empresa:'cliente',resp:'responsável',tel:'telefone',email:'e-mail',cond:'condição',comp:'competência',origem:'origem',situacao:'situação'};
+    let dica='';
+    if(i.naCentral===0&&i.assinados===0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato assinado foi encontrado</b> entre os ${i.total} itens da lista. Confira se a coluna usada como "assinado" é a correta (veja "Colunas usadas" abaixo).</div>`;
+    else if(i.naCentral===0&&i.vazios>0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato entrou na Central.</b> ${i.vazios} contrato(s) assinado(s) estão com a coluna "${ctEsc(i.cols.central||'Central Triagem')}" <b>vazia</b>, e só entram os que estão escritos como "Não". Marque "Não" nos que devem entrar.</div>`;
+    else if(i.naCentral===0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato entrou na Central.</b> Para um contrato entrar, ele precisa estar assinado e com "${ctEsc(i.cols.central||'Central Triagem')}" = "Não".</div>`;
+    const usadas=Object.keys(rot).map(k=>`${rot[k]}: ${i.cols[k]?'<b>'+ctEsc(i.cols[k])+'</b>':'<i>não encontrada</i>'}`).join(' · ');
+    html=`${dica?`<div class="ct-box ct-box-warn">${dica}</div>`:''}<details class="ct-info"><summary>Lista "${ctEsc(i.lista)}": ${i.total} itens · ${i.assinados} assinados · <b>${i.naCentral} na Central</b>${i.vazios?` · ${i.vazios} assinados com a coluna vazia (não entram)`:''}${i.removidos?` · ${i.removidos} já removidos`:''} · lido às ${i.hora}</summary><div class="ct-det"><b>Colunas usadas:</b> ${usadas}</div></details>`;
+  }
   box.innerHTML=html;
   const nb=document.getElementById('ob-new-btn');if(nb)nb.style.display=(OB_SRC[obDiv]&&!st.error)?'none':'';
   refreshIcons();

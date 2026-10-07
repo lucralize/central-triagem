@@ -3142,16 +3142,17 @@ async function obSaveNew(){
 
 
 // ── contratos assinados: a lista de contratos decide quem aparece na Central ──
-// Aparece: contrato assinado = Sim E coluna "Central Triagem" = "Não" (só o "Não" escrito; vazio não conta).
+// Dupla verificação, valores EXATOS: aparece só se ContratoAssinado = "Sim" E Central Triagem = "Não".
+// Vazio ou qualquer outro valor em um dos dois campos = ignorado (por isso só contratos novos entram).
 // Ao entrar, o cadastro é criado sozinho na planilha. Marcar "Sim" em "Central Triagem" tira o cliente da Central.
 const OB_SRC={
   Contabilidade:{sitePath:null,urlName:'Contrato%20de%20Prestao%20de%20Servios%20Contbeis%20e%20Tributri',label:'Contrato de Prestação de Serviços Contábeis e Tributários'},
   Tech:{sitePath:'LUCRALIZETECH',urlName:'Termo%20de%20Aceite%20Digital',label:'Termo de Aceite Digital',
     // no Tech o "contrato assinado" é o aceite do termo: aceita também esses nomes
-    fields:{assinado:{exact:['contrato assinado','termo assinado','termo de aceite assinado','aceite assinado','termo aceito','aceite do termo','aceito','assinado','assinatura','aceite'],contains:['assinado','aceito']}}}
+    fields:{assinado:{exact:['contrato assinado','contratoassinado','termo assinado','termo de aceite assinado','aceite assinado','termo aceito','aceite do termo','aceito','assinado','assinatura','aceite'],contains:['assinado','aceito']}}}
 };
 const OB_SRC_FIELDS={
-  assinado:{exact:['contrato assinado','assinado','assinatura'],contains:['assinado']},
+  assinado:{exact:['contrato assinado','contratoassinado','assinado','assinatura'],contains:['assinado']},
   central:{exact:['central triagem','centraltriagem','central de triagem','na central triagem'],contains:['central triagem','centraltriagem']},
   empresa:{exact:['empresa','razao social','razao social nome','nome da empresa','cliente','nome do cliente'],contains:['razao social']},
   resp:{exact:['responsavel','nome do responsavel','nome responsavel','representante legal'],contains:['representante legal']},
@@ -3173,8 +3174,11 @@ function obFindCol(cols,def){
   return null;
 }
 function obOrigemKey(v){try{const j=JSON.parse(String(v[21]==null?'':v[21])+String(v[22]==null?'':v[22]));return(j&&j.origem&&j.origem.key)||null;}catch(e){return null;}}
-function obTruthy(v){return v===true||/^(sim|yes|true|1|assinado)$/i.test(String(v==null?'':v).trim());}
-function obIsNao(v){return v===false||obNormTxt(v)==='nao';}
+// campos de ESCOLHA: valem só os textos exatos "Sim" e "Não" (colunas Sim/Não do SharePoint: true/false)
+function obExato(v){return String(v==null?'':v).trim();}
+function obTruthy(v){return v===true||obExato(v)==='Sim';}
+function obIsNao(v){return v===false||obExato(v)==='Não';}
+function obIsRemovido(v){return v===true||obExato(v)==='Sim';}
 function obNormSit(v){const n=obNormTxt(v);return n.includes('constitu')?'Constituição':'Transferência';}
 function obCompFrom(v){
   const t=String(v==null?'':v).trim();let m;
@@ -3219,11 +3223,12 @@ async function obLoadContracts(div,quiet){
   div=div||obDiv;const st=obCt[div],src=OB_SRC[div];
   if(!src){st.loaded=false;st.error='';st.pending=null;obRenderContracts();return;}
   st.error='';st.colsInfo='';st.pending=null;st.loading=true;st.quiet=!!quiet;
+  if(!quiet)st.snoozed=false;
   if(!quiet)obRenderContracts();
   try{
     const m=await obSrcResolve(div);
     if(!m.map.assinado)throw obSrcErr('Não encontrei a coluna de contrato assinado (ou aceite do termo) na lista.',m);
-    if(!m.map.central)throw obSrcErr('Crie na lista de contratos a coluna "Central Triagem" (tipo Escolha: Não / Sim, valor padrão Não). Só entram na Central os contratos assinados com essa coluna em "Não".',m);
+    if(!m.map.central)throw obSrcErr('Crie na lista de contratos a coluna "Central Triagem" (tipo Escolha: Não / Sim). Só entram na Central os contratos com ContratoAssinado = "Sim" e Central Triagem = "Não" (exatamente assim).',m);
     const keys=[...new Set(Object.values(m.map).map(obColKey).filter(Boolean))];
     const all=await obGraphAll(`/sites/${m.siteId}/lists/${m.listId}/items?$expand=fields($select=${keys.join(',')})&$top=200`,{'Prefer':'HonorNonIndexedQueriesWarningMayFailRandomly'});
     const f=(it,k)=>{const c=m.map[k];return c?it.fields[obColKey(c)]:undefined;};
@@ -3245,11 +3250,10 @@ async function obLoadContracts(div,quiet){
     st.byKey=Object.fromEntries(contratos.map(c=>[c.key,c]));
     st.loaded=true;
     const assin=all.filter(it=>it.fields&&obTruthy(f(it,'assinado')));
-    const vazio=v=>v==null||String(v).trim()==='';
     const hh=new Date(),p2=x=>String(x).padStart(2,'0');
     st.info={lista:OB_SRC[div].label,total:all.length,assinados:assin.length,naCentral:contratos.length,
-      vazios:assin.filter(it=>vazio(f(it,'central'))).length,
-      removidos:assin.filter(it=>f(it,'central')===true||obNormTxt(f(it,'central'))==='sim').length,
+      removidos:assin.filter(it=>obIsRemovido(f(it,'central'))).length,
+      fora:assin.filter(it=>!obIsNao(f(it,'central'))&&!obIsRemovido(f(it,'central'))).length,
       hora:`${p2(hh.getHours())}:${p2(hh.getMinutes())}`,
       cols:Object.fromEntries(Object.keys(m.map).map(k=>[k,m.map[k]?m.map[k].displayName:null]))};
     const feitos=new Set(OB[div].map(o=>o.origem&&o.origem.key).filter(Boolean));
@@ -3272,11 +3276,15 @@ async function obImportContracts(div,list){
     const obs=todo.map(c=>obNorm({id:obNewId('o'),divisao:div,resp:c.nome,situacao:c.situacao,status:'Pendente',criadoEm:obTsFromIso(c.assinadoEm),aberturaOk:false,aberturaOkEm:'',docsOk:false,
       collab:{A:none,B:none,C:none},tel:c.tel,email:c.email,comp:c.comp,cond:c.cond,obs:'',criadoPor:'Contrato assinado',tasks:{},docs:{},
       origem:{key:c.key,lista:OB_SRC[div].label,item:c.itemId}}));
-    const r=await spGraph('POST',`${wb}/tables/${OB_T}/rows/add`,{index:null,values:obs.map(obToRow)},h);
-    const first=(r&&r.index!=null)?r.index:null;
-    obs.forEach((o,i)=>{o._idx=first!=null?first+i:null;});
-    try{await spGraph('POST',`${wb}/tables/${OB_H}/rows/add`,{index:null,values:obs.map((o,i)=>[obNewId('h'),o.id,o.criadoEm,'Central de Triagem',`Onboarding iniciado automaticamente a partir do contrato assinado (item ${todo[i].itemId} da lista de contratos${todo[i].origemTxt?'; origem: '+todo[i].origemTxt:''}).`])},h);}
-    catch(e){/* o histórico é complementar: o cadastro já foi criado */}
+    // em lotes de 100 linhas, para listas grandes não estourarem o limite de uma chamada
+    for(let i=0;i<obs.length;i+=100){
+      const lote=obs.slice(i,i+100);
+      const r=await spGraph('POST',`${wb}/tables/${OB_T}/rows/add`,{index:null,values:lote.map(obToRow)},h);
+      const first=(r&&r.index!=null)?r.index:null;
+      lote.forEach((o,k)=>{o._idx=first!=null?first+k:null;});
+      try{await spGraph('POST',`${wb}/tables/${OB_H}/rows/add`,{index:null,values:lote.map((o,k)=>[obNewId('h'),o.id,o.criadoEm,'Central de Triagem',`Onboarding iniciado automaticamente a partir do contrato assinado (item ${todo[i+k].itemId} da lista de contratos${todo[i+k].origemTxt?'; origem: '+todo[i+k].origemTxt:''}).`])},h);}
+      catch(e){/* o histórico é complementar: o cadastro já foi criado */}
+    }
     criados=obs;
   }));
   criados.forEach(o=>{if(!OB[div].some(x=>x.id===o.id))OB[div].push(o);obRecent[o.id]={ts:Date.now(),ob:o};});
@@ -3296,15 +3304,16 @@ function obRenderContracts(){
   const st=obCt[obDiv];let html='';
   if(st.loading&&!st.quiet)html='<div class="ct-box"><div class="ct-msg">Sincronizando com a lista de contratos...</div></div>';
   else if(st.error)html=`<div class="ct-box ct-box-err"><div class="ct-msg ct-err"><b>Lista de contratos:</b> ${ctEsc(st.error)}${st.colsInfo?`<br><span style="font-size:11px;">${ctEsc(st.colsInfo)}</span>`:''}</div><div style="padding:0 16px 12px;"><button class="btn btn-outline btn-sm" data-act="ct-refresh"><i data-lucide="refresh-cw"></i> Tentar de novo</button></div></div>`;
-  else if(st.pending&&st.pending.length)html=`<div class="ct-box ct-box-warn"><div class="ct-msg"><b>${st.pending.length} contratos assinados</b> aguardam entrada na Central. Como são muitos de uma vez, confirme antes de criar os cadastros.</div><div style="padding:0 16px 12px;"><button class="btn btn-primary btn-sm" data-act="ct-import"><i data-lucide="download"></i> Importar ${st.pending.length} contratos</button></div></div>`;
+  else if(st.pending&&st.pending.length&&!st.snoozed)html=`<div class="ct-box ct-box-warn"><div class="ct-msg"><b>${st.pending.length} contratos assinados</b> ainda não estão na Central. Como são muitos de uma vez, confirme antes de criar os cadastros. Para deixar algum de fora, deixe a coluna \"Central Triagem\" dele vazia ou como \"Sim\" antes de importar.</div><div style="padding:0 16px 12px;display:flex;gap:8px;"><button class="btn btn-primary btn-sm" data-act="ct-import"><i data-lucide="download"></i> Importar todos (${st.pending.length})</button><button class="btn btn-outline btn-sm" data-act="ct-snooze">Agora não</button></div></div>`;
   if(!html&&st.info&&st.loaded){
     const i=st.info,rot={assinado:'assinado',central:'central',empresa:'cliente',resp:'responsável',tel:'telefone',email:'e-mail',cond:'condição',comp:'competência',origem:'origem',situacao:'situação'};
     let dica='';
-    if(i.naCentral===0&&i.assinados===0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato assinado foi encontrado</b> entre os ${i.total} itens da lista. Confira se a coluna usada como "assinado" é a correta (veja "Colunas usadas" abaixo).</div>`;
-    else if(i.naCentral===0&&i.vazios>0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato entrou na Central.</b> ${i.vazios} contrato(s) assinado(s) estão com a coluna "${ctEsc(i.cols.central||'Central Triagem')}" <b>vazia</b>, e só entram os que estão escritos como "Não". Marque "Não" nos que devem entrar.</div>`;
-    else if(i.naCentral===0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato entrou na Central.</b> Para um contrato entrar, ele precisa estar assinado e com "${ctEsc(i.cols.central||'Central Triagem')}" = "Não".</div>`;
+    const col=ctEsc(i.cols.central||'Central Triagem');
+    if(i.naCentral===0&&i.assinados===0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato assinado foi encontrado</b> entre os ${i.total} itens da lista. Só vale o valor exato "Sim" na coluna "${ctEsc(i.cols.assinado||'ContratoAssinado')}". Confira se é a coluna certa (veja "Colunas usadas" abaixo).</div>`;
+    else if(i.naCentral===0&&i.fora>0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato entrou na Central.</b> ${i.fora} contrato(s) assinado(s) estão com a coluna "${col}" <b>vazia ou com outro valor</b>. Só entram os que têm exatamente "Não". Marque "Não" nos que devem entrar.</div>`;
+    else if(i.naCentral===0&&i.removidos>0)dica=`<div class="ct-msg ct-warnmsg"><b>Nenhum contrato na Central.</b> Os ${i.assinados} contrato(s) assinado(s) estão marcados como removidos (coluna "${col}" = "Sim"). Mude para "Não" para um contrato voltar.</div>`;
     const usadas=Object.keys(rot).map(k=>`${rot[k]}: ${i.cols[k]?'<b>'+ctEsc(i.cols[k])+'</b>':'<i>não encontrada</i>'}`).join(' · ');
-    html=`${dica?`<div class="ct-box ct-box-warn">${dica}</div>`:''}<details class="ct-info"><summary>Lista "${ctEsc(i.lista)}": ${i.total} itens · ${i.assinados} assinados · <b>${i.naCentral} na Central</b>${i.vazios?` · ${i.vazios} assinados com a coluna vazia (não entram)`:''}${i.removidos?` · ${i.removidos} já removidos`:''} · lido às ${i.hora}</summary><div class="ct-det"><b>Colunas usadas:</b> ${usadas}</div></details>`;
+    html=`${dica?`<div class="ct-box ct-box-warn">${dica}</div>`:''}<details class="ct-info"><summary>Lista "${ctEsc(i.lista)}": ${i.total} itens · ${i.assinados} assinados · <b>${i.naCentral} na Central</b>${i.fora?` · ${i.fora} assinados com a coluna vazia ou diferente de "Não" (ignorados)`:''}${i.removidos?` · ${i.removidos} removidos`:''} · lido às ${i.hora}</summary><div class="ct-det"><b>Colunas usadas:</b> ${usadas}</div></details>`;
   }
   box.innerHTML=html;
   const nb=document.getElementById('ob-new-btn');if(nb)nb.style.display=(OB_SRC[obDiv]&&!st.error)?'none':'';
@@ -3319,6 +3328,7 @@ async function obActRemoveCentral(){
   if(!confirm(msg))return;
   return obRun(async()=>{
     const m=await obSrcResolve(div);
+    if(!m.map.central)throw ctErr('Para remover clientes da Central, crie na lista de contratos a coluna "Central Triagem" (tipo Escolha: Não / Sim).');
     try{await spGraph('PATCH',`/sites/${m.siteId}/lists/${m.listId}/items/${c.itemId}/fields`,{[m.map.central.name]:m.map.central.boolean?true:'Sim'});}
     catch(e){if(e.status===401||e.status===403)throw ctErr('Sem permissão para editar a lista de contratos. Peça edição a um administrador ou marque "Sim" na coluna "Central Triagem" direto no SharePoint.');throw e;}
     st.visibleKeys.delete(o.origem.key);
@@ -3329,6 +3339,7 @@ async function obActRemoveCentral(){
 document.getElementById('ob-contracts').addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]');if(!b)return;
   if(b.dataset.act==='ct-import')obConfirmImport();
+  else if(b.dataset.act==='ct-snooze'){obCt[obDiv].snoozed=true;obRenderContracts();}
   else if(b.dataset.act==='ct-refresh'){obSrcCache={};obLoadAll().catch(()=>{}).then(()=>obLoadContracts(obDiv));}
 });
 

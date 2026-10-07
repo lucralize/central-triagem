@@ -567,9 +567,14 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
       <span class="icon"><i data-lucide="calculator"></i></span> Onboarding Contabilidade
       <span class="nav-badge" id="badge-ob-cont" style="display:none"></span>
     </div>
-    <div class="nav-item" onclick="goTo('certificados')" id="nav-certificados">
-      <span class="icon"><i data-lucide="shield-check"></i></span> Certificados / eCac
-      <span class="nav-badge" id="badge-certs" style="display:none"></span>
+    <div class="nav-subhead" id="nav-certs-head" style="display:none"><i data-lucide="shield-check"></i> Certificados / eCac</div>
+    <div class="nav-item nav-sub" onclick="goTo('certs-cont')" id="nav-certs-cont" style="display:none">
+      <span class="icon"><i data-lucide="calculator"></i></span> Contabilidade
+      <span class="nav-badge" id="badge-certs-cont" style="display:none"></span>
+    </div>
+    <div class="nav-item nav-sub" onclick="goTo('certs-tech')" id="nav-certs-tech" style="display:none">
+      <span class="icon"><i data-lucide="rocket"></i></span> Tech
+      <span class="nav-badge" id="badge-certs-tech" style="display:none"></span>
     </div>
     <div class="nav-item" onclick="goTo('saida')" id="nav-saida">
       <span class="icon"><i data-lucide="log-out"></i></span> Saída de Clientes
@@ -673,7 +678,7 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
       <div class="flex-between mb-16">
         <div class="search-bar" style="flex:1;margin-bottom:0;">
           <input type="text" class="form-control" id="cert-search" placeholder="Buscar por CNPJ ou Razão Social..." oninput="renderCertsTable()">
-          <select class="form-control" style="width:150px;" id="cert-filter-div" onchange="renderCertsTable()">
+          <select class="form-control" style="display:none;" id="cert-filter-div" onchange="renderCertsTable()">
             <option value="">Todas as divisões</option>
             <option>Contabilidade</option>
             <option>Tech</option>
@@ -726,7 +731,6 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
                 <tr>
                   <th>CNPJ</th>
                   <th>Razão Social</th>
-                  <th>Divisão</th>
                   <th>Tipo</th>
                   <th>Venc. Certificado</th>
                   <th>Venc. Procuração</th>
@@ -1421,11 +1425,11 @@ const CT_USERS_FILE={
   cols:['nome','email','cargo','tipo','ativo','modulos','criadoEm']
 };
 const CT_TIPOS=['Administrador','Colaborador'];
-const CT_MODULES=['Onboarding Contabilidade','Onboarding Tech','Certificados / eCac','Saída de Clientes','Suspensão / Cancelamento','Usuários'];
+const CT_MODULES=['Onboarding Contabilidade','Onboarding Tech','Certificados Contabilidade','Certificados Tech','Saída de Clientes','Suspensão / Cancelamento','Usuários'];
 // Os dois primeiros módulos são o acesso às divisões de "Implantação / Documentos". Os nomes gravados na planilha não mudam.
-const CT_MODULE_LABEL={'Onboarding Contabilidade':'Implantação / Documentos — Contabilidade','Onboarding Tech':'Implantação / Documentos — Tech'};
+const CT_MODULE_LABEL={'Onboarding Contabilidade':'Implantação / Documentos — Contabilidade','Onboarding Tech':'Implantação / Documentos — Tech','Certificados Contabilidade':'Certificados / eCac — Contabilidade','Certificados Tech':'Certificados / eCac — Tech'};
 function ctModLabel(m){return CT_MODULE_LABEL[m]||m;}
-const CT_PAGE_MODULE={'docs-cont':'Onboarding Contabilidade','docs-tech':'Onboarding Tech','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspensão / Cancelamento',usuarios:'Usuários'};
+const CT_PAGE_MODULE={'certs-cont':'Certificados Contabilidade','certs-tech':'Certificados Tech','docs-cont':'Onboarding Contabilidade','docs-tech':'Onboarding Tech','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade',saida:'Saída de Clientes',suspensos:'Suspensão / Cancelamento',usuarios:'Usuários'};
 const CT_LOGOUT_FLAG='ct_logged_out';
 const CT_RECENT_MS=5*60*1000;
 let SESSION=null,CT_USERS=[],ctUsersError='',ctFile=null,ctQueue=Promise.resolve(),ctRecent={},ctEditing=null;
@@ -1434,7 +1438,15 @@ let SESSION=null,CT_USERS=[],ctUsersError='',ctFile=null,ctQueue=Promise.resolve
 function ctEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function ctRank(t){return t==='Administrador'?2:1;}
 function ctIsAdminTipo(t){return t==='Administrador';}
-function ctSplitModules(s){return String(s||'').split(';').map(x=>x.trim()).filter(Boolean);}
+// "Certificados / eCac" (nome antigo) vale para as duas divisões: quem já tinha esse acesso não perde nada
+function ctSplitModules(s){
+  const out=[];
+  String(s||'').split(';').map(x=>x.trim()).filter(Boolean).forEach(m=>{
+    const lista=m==='Certificados / eCac'?['Certificados Contabilidade','Certificados Tech']:[m];
+    lista.forEach(x=>{if(!out.includes(x))out.push(x);});
+  });
+  return out;
+}
 function ctSleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function ctErr(msg){const e=new Error(msg);e.friendly=true;return e;}
 function ctFriendly(e){
@@ -1601,6 +1613,8 @@ function ctApplyPermissions(){
   });
   const sec=document.getElementById('nav-section-admin');
   if(sec)sec.style.display=ctCanAccess('usuarios')?'':'none';
+  const ch=document.getElementById('nav-certs-head');
+  if(ch)ch.style.display=(ctCanAccess('certs-cont')||ctCanAccess('certs-tech'))?'':'none';
   const dh=document.getElementById('nav-docs-head');
   if(dh)dh.style.display=(ctCanAccess('docs-cont')||ctCanAccess('docs-tech'))?'':'none';
 }
@@ -1936,7 +1950,7 @@ async function spSyncCertsPull(){
   try{
     if(!_spToken){_spSetStatus('🔐 Fazendo login...');await spLogin();}
     let all=[];
-    for(const divisao of Object.keys(SP_CONFIG.sites)){
+    for(const divisao of Object.keys(SP_CONFIG.sites).filter(ckCertCanDiv)){
       _spSetStatus(`🔄 Buscando ${divisao}...`);
       const{siteId,listId}=await spResolveSite(divisao);
       let url=`/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=200`,guard=0;
@@ -2061,26 +2075,27 @@ function dbSave(k,item){
 function dbDelete(k,id){dbSet(k,dbGet(k).filter(i=>i.id!==id));}
 
 // ==================== NAVIGATION ====================
-const pages={painel:'Painel Geral',documentos:'Implantação / Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento',usuarios:'Usuários','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade','docs-cont':'Implantação / Documentos — Contabilidade','docs-tech':'Implantação / Documentos — Tech'};
-const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Implantação e checklist de documentos por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento',usuarios:'Cadastro e permissões de acesso','ob-tech':'Clientes em implantação na Lucralize Tech','ob-cont':'Clientes em implantação na Lucralize Contabilidade','docs-cont':'Implantação e checklist de documentos dos clientes da Contabilidade','docs-tech':'Implantação e checklist de documentos dos clientes do Tech'};
+const pages={painel:'Painel Geral',documentos:'Implantação / Documentos',certificados:'Certificados / eCac',saida:'Saída de Clientes',suspensos:'Suspenso/Em Cancelamento',usuarios:'Usuários','ob-tech':'Onboarding Tech','ob-cont':'Onboarding Contabilidade','docs-cont':'Implantação / Documentos — Contabilidade','docs-tech':'Implantação / Documentos — Tech','certs-cont':'Certificados / eCac — Contabilidade','certs-tech':'Certificados / eCac — Tech'};
+const subtitles={painel:'Visão consolidada de todas as pendências',documentos:'Implantação e checklist de documentos por cliente',certificados:'Controle de vencimentos e alertas',saida:'Clientes que encerraram contrato',suspensos:'Contratos suspensos e acompanhamento',usuarios:'Cadastro e permissões de acesso','ob-tech':'Clientes em implantação na Lucralize Tech','ob-cont':'Clientes em implantação na Lucralize Contabilidade','docs-cont':'Implantação e checklist de documentos dos clientes da Contabilidade','docs-tech':'Implantação e checklist de documentos dos clientes do Tech','certs-cont':'Vencimentos e alertas dos clientes da Contabilidade','certs-tech':'Vencimentos e alertas dos clientes do Tech'};
 let currentPage='painel', currentEditId=null, alertaCertId=null, alertaTipo=null;
 
 function refreshIcons(){ try{ if(window.lucide&&lucide.createIcons)lucide.createIcons(); }catch(e){ console.warn('Lucide:',e); } }
 function goTo(page) {
   if(page==='documentos')page=ckDocsDefault();   // atalho antigo: abre a primeira seção permitida
+  if(page==='certificados')page=ckCertsDefault();
   if(!ctCanAccess(page)){ toast('Você não tem acesso a este módulo.','error'); return; }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const pg=document.getElementById('page-'+(page==='ob-tech'||page==='ob-cont'?'ob':page==='docs-cont'||page==='docs-tech'?'documentos':page));
+  const pg=document.getElementById('page-'+(page==='ob-tech'||page==='ob-cont'?'ob':page==='docs-cont'||page==='docs-tech'?'documentos':page==='certs-cont'||page==='certs-tech'?'certificados':page));
   const nv=document.getElementById('nav-'+page);
   if(pg) pg.classList.add('active');
   if(nv) nv.classList.add('active');
   document.getElementById('page-title').textContent=pages[page]||page;
   document.getElementById('page-subtitle').textContent=subtitles[page]||'';
   currentPage=page;
-  const fns={painel:renderPainel,'docs-cont':()=>ckSwitch('Contabilidade'),'docs-tech':()=>ckSwitch('Tech'),certificados:renderCertsTable,saida:renderSaidaTable,suspensos:renderSuspTable,usuarios:ctOpenUsersPage,'ob-tech':()=>obSwitch('Tech'),'ob-cont':()=>obSwitch('Contabilidade')};
+  const fns={painel:renderPainel,'docs-cont':()=>ckSwitch('Contabilidade'),'docs-tech':()=>ckSwitch('Tech'),'certs-cont':()=>ckCertsSwitch('Contabilidade'),'certs-tech':()=>ckCertsSwitch('Tech'),saida:renderSaidaTable,suspensos:renderSuspTable,usuarios:ctOpenUsersPage,'ob-tech':()=>obSwitch('Tech'),'ob-cont':()=>obSwitch('Contabilidade')};
   if(fns[page]) fns[page]();
-  if(page==='certificados') setTimeout(verificarDispatchAutomatico,400);
+  if(page==='certs-cont'||page==='certs-tech') setTimeout(verificarDispatchAutomatico,400);
   refreshIcons();
 }
 
@@ -2091,10 +2106,12 @@ document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click
 
 // ==================== BADGES ====================
 function updateBadges(){
-  const certs=dbGet('certs');
+  const certs=ckCertsVisible();
   setBadge('badge-docs-cont',_checklistCache.filter(d=>d.divisao==='Contabilidade').length);
   setBadge('badge-docs-tech',_checklistCache.filter(d=>d.divisao==='Tech').length);
-  setBadge('badge-certs',certs.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d>=0&&d<=30;}).length);
+  const v30=c=>{const d=daysDiff(c.vencimento);return d!==null&&d>=0&&d<=30;};
+  setBadge('badge-certs-cont',certs.filter(c=>c.divisao==='Contabilidade'&&v30(c)).length);
+  setBadge('badge-certs-tech',certs.filter(c=>c.divisao==='Tech'&&v30(c)).length);
   setBadge('badge-saida',_saidaCache.length);
   setBadge('badge-susp',_clientStatusCache.filter(c=>c.situacao==='SUSPENSO'||c.situacao==='EM CANCELAMENTO').length);
   obUpdateBadges();
@@ -2103,7 +2120,7 @@ function setBadge(id,n){const el=document.getElementById(id);if(!el)return;if(n>
 
 // ==================== PAINEL ====================
 function renderPainel(){
-  const certs=dbGet('certs');
+  const certs=ckCertsVisible();
   const cv15=certs.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d>=0&&d<=15;});
   const cv30=certs.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d>15&&d<=30;});
   const pv15=certs.filter(c=>{const d=daysDiff(c.procVenc);return d!==null&&d>=0&&d<=15;});
@@ -2208,8 +2225,8 @@ function renderCertsTable(){
   const procVencF=document.getElementById('cert-filter-proc-venc')?.value||'';
   const certDigF=document.getElementById('cert-filter-cert-dig')?.value||'';
   const procF=document.getElementById('cert-filter-proc')?.value||'';
-  const total=dbGet('certs').length;
-  let data=dbGet('certs');
+  const total=ckCertsVisible().filter(c=>!divF||c.divisao===divF).length;
+  let data=ckCertsVisible();
   if(search)data=data.filter(c=>c.cnpj.includes(search)||c.razaoSocial.toLowerCase().includes(search));
   if(divF)data=data.filter(c=>c.divisao===divF);
   if(vencF==='vencidos')data=data.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d<0;});
@@ -2219,7 +2236,7 @@ function renderCertsTable(){
   if(certDigF)data=data.filter(c=>c.temCertificado===certDigF);
   if(procF)data=data.filter(c=>c.statusProcuracao===procF);
   const lbl=document.getElementById('cert-count-label');
-  const anyFilter=divF||vencF||procVencF||certDigF||procF||search;
+  const anyFilter=vencF||procVencF||certDigF||procF||search;
   if(lbl){if(anyFilter)lbl.textContent=data.length+' de '+total+' clientes';else lbl.textContent=total+' clientes cadastrados';}
   // Sort alphabetically within each divisão
   data.sort((a,b)=>{if(a.divisao!==b.divisao)return a.divisao==='Contabilidade'?-1:1;return a.razaoSocial.localeCompare(b.razaoSocial,'pt-BR');});
@@ -2243,7 +2260,7 @@ function renderCertsTable(){
     if(!divF)rows+=`<tr style="background:var(--gray-50);border-top:2px solid var(--gray-200);"><td colspan="12" style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-500);">${div==='Contabilidade'?'📊':'💻'} ${div} — ${group.length} cliente${group.length!==1?'s':''}</td></tr>`;
     group.forEach(c=>{
       const d=daysDiff(c.vencimento);const rc=d!==null&&d>=0&&d<=15?'urgente-15':(d!==null&&d>15&&d<=30?'urgente-30':'');
-      rows+=`<tr class="${rc}"><td><code style="font-size:12px;">${c.cnpj}</code></td><td><strong>${c.razaoSocial}</strong></td><td><span class="badge ${c.divisao==='Contabilidade'?'badge-info':'badge-purple'}">${c.divisao}</span></td><td><span class="badge badge-gray">${c.tipo||'—'}</span></td><td>${c.tipo&&c.tipo.startsWith('A3')?'<span class="badge" style="background:#6366f1;color:#fff;font-size:11px;padding:3px 8px;border-radius:4px;">🔑 A3</span>':vb(c.vencimento)}</td><td>${vb(c.procVenc)}</td><td>${c.alerta30==='Sim'?'<span class="badge badge-success">✅</span>':'<span class="badge badge-gray">Não</span>'}</td><td>${c.alerta15==='Sim'?'<span class="badge badge-success">✅</span>':'<span class="badge badge-gray">Não</span>'}</td><td>${pb(c.temCertificado,'badge-success','badge-warning')}</td><td>${pb(c.statusProcuracao,'badge-success','badge-warning')}</td><td>${pb(c.codigoAcesso,'badge-warning','badge-success')}</td><td>${d!==null&&d>=0&&d<=15?`<button class="btn btn-danger btn-sm" onclick="gerarAlerta('${c.id}','15')">📧 15d</button> `:''} ${d!==null&&d>15&&d<=30?`<button class="btn btn-outline btn-sm" onclick="gerarAlerta('${c.id}','30')">📧 30d</button> `:''}<button class="btn btn-outline btn-sm" onclick="openCertModal('${c.id}')">✏️</button> <button class="btn btn-outline btn-sm" style="color:var(--danger);" onclick="deleteItem('certs','${c.id}',renderCertsTable)">🗑</button></td></tr>`;
+      rows+=`<tr class="${rc}"><td><code style="font-size:12px;">${c.cnpj}</code></td><td><strong>${c.razaoSocial}</strong></td><td><span class="badge badge-gray">${c.tipo||'—'}</span></td><td>${c.tipo&&c.tipo.startsWith('A3')?'<span class="badge" style="background:#6366f1;color:#fff;font-size:11px;padding:3px 8px;border-radius:4px;">🔑 A3</span>':vb(c.vencimento)}</td><td>${vb(c.procVenc)}</td><td>${c.alerta30==='Sim'?'<span class="badge badge-success">✅</span>':'<span class="badge badge-gray">Não</span>'}</td><td>${c.alerta15==='Sim'?'<span class="badge badge-success">✅</span>':'<span class="badge badge-gray">Não</span>'}</td><td>${pb(c.temCertificado,'badge-success','badge-warning')}</td><td>${pb(c.statusProcuracao,'badge-success','badge-warning')}</td><td>${pb(c.codigoAcesso,'badge-warning','badge-success')}</td><td>${d!==null&&d>=0&&d<=15?`<button class="btn btn-danger btn-sm" onclick="gerarAlerta('${c.id}','15')">📧 15d</button> `:''} ${d!==null&&d>15&&d<=30?`<button class="btn btn-outline btn-sm" onclick="gerarAlerta('${c.id}','30')">📧 30d</button> `:''}<button class="btn btn-outline btn-sm" onclick="openCertModal('${c.id}')">✏️</button> <button class="btn btn-outline btn-sm" style="color:var(--danger);" onclick="deleteItem('certs','${c.id}',renderCertsTable)">🗑</button></td></tr>`;
     });
   });
   tbody.innerHTML=rows;
@@ -2268,7 +2285,7 @@ function confirmarEnvioAlerta(){
 // ==================== DISPARO AUTOMÁTICO ====================
 let disparosPendentes=[];
 function verificarDispatchAutomatico(){
-  const certs=dbGet('certs'),hoje=today();disparosPendentes=[];
+  const certs=ckCertsVisible().filter(c=>c.divisao===_certDiv),hoje=today();disparosPendentes=[];   // a fila de alertas é da seção aberta
   certs.forEach(c=>{
     const d=daysDiff(c.vencimento);
     if(d===null||d>15)return;
@@ -2423,7 +2440,7 @@ function _certPrintFrame(doc){
 function _certGetData(){
   const s=document.getElementById('cert-search').value.toLowerCase();
   const d=document.getElementById('cert-filter-div').value;
-  let data=dbGet('certs');
+  let data=ckCertsVisible();
   if(s)data=data.filter(c=>c.cnpj.includes(s)||c.razaoSocial.toLowerCase().includes(s));
   if(d)data=data.filter(c=>c.divisao===d);
   return data;
@@ -2563,7 +2580,7 @@ async function exportarCertsExcel(){
   const procVencF=document.getElementById('cert-filter-proc-venc')?.value||'';
   const certDigF=document.getElementById('cert-filter-cert-dig')?.value||'';
   const procF=document.getElementById('cert-filter-proc')?.value||'';
-  let data=dbGet('certs');
+  let data=ckCertsVisible();
   if(search)data=data.filter(c=>c.cnpj.includes(search)||c.razaoSocial.toLowerCase().includes(search));
   if(divF)data=data.filter(c=>c.divisao===divF);
   if(vencF==='vencidos')data=data.filter(c=>{const d=daysDiff(c.vencimento);return d!==null&&d<0;});
@@ -3953,6 +3970,37 @@ function ctApplyTheme(){
 function ctSetTheme(t){try{localStorage.setItem('ct_theme',t);}catch(e){}ctApplyTheme();}
 document.getElementById('theme-toggle').addEventListener('click',ev=>{const b=ev.target.closest('button[data-t]');if(b)ctSetTheme(b.dataset.t);});
 ctApplyTheme();
+
+
+// ==================== CERTIFICADOS / eCac dividido por divisão ====================
+// Cada seção (Contabilidade, Tech) tem seu botão e seu acesso. O filtro de divisão antigo fica escondido e fixo na seção aberta,
+// então a tabela, as exportações (PDF, imagem, Excel) e os disparos já saem só da divisão aberta e permitida.
+let _certDiv='Contabilidade';
+function ckCertCanDiv(d){return ctCanAccess(d==='Tech'?'certs-tech':'certs-cont');}
+function ckCertsVisible(){return dbGet('certs').filter(c=>ckCertCanDiv(c.divisao));}
+function ckCertsDefault(){
+  let last='';try{last=localStorage.getItem('ct_certs_div')||'';}catch(e){}
+  const d=[last,'Contabilidade','Tech'].filter(x=>x==='Tech'||x==='Contabilidade').find(ckCertCanDiv);
+  return d?(d==='Tech'?'certs-tech':'certs-cont'):'painel';
+}
+function ckCertsSwitch(div){
+  _certDiv=div;try{localStorage.setItem('ct_certs_div',div);}catch(e){}
+  const f=document.getElementById('cert-filter-div');if(f)f.value=div;
+  const q=document.getElementById('cert-search');if(q)q.value='';
+  ['cert-filter-venc','cert-filter-proc-venc','cert-filter-cert-dig','cert-filter-proc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  renderCertsTable();
+}
+// o cadastro de certificado só oferece as divisões a que a pessoa tem acesso (e já abre na seção atual)
+const _openCertModalOrig=openCertModal;
+openCertModal=function(id=null){
+  _openCertModalOrig(id);
+  const sel=document.getElementById('c-divisao');if(!sel)return;
+  const permitidas=['Contabilidade','Tech'].filter(ckCertCanDiv);
+  const item=id?dbGet('certs').find(i=>i.id===id):null;
+  const atual=item&&permitidas.includes(item.divisao)?item.divisao:(permitidas.includes(_certDiv)?_certDiv:permitidas[0]);
+  sel.innerHTML=permitidas.map(d=>`<option>${d}</option>`).join('');
+  if(atual)sel.value=atual;
+};
 
 // ==================== INIT ====================
 renderPainel();

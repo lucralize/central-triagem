@@ -654,6 +654,7 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
         <div class="search-bar" style="flex:1;margin-bottom:0;">
           <input type="text" class="form-control" id="docs-search" placeholder="Buscar por CNPJ ou Razão Social..." oninput="renderDocsTable()">
         </div>
+        <button class="btn btn-outline" style="margin-left:8px;" onclick="exportarImplantacaoImagem()"><i data-lucide="image"></i> Extrair Imagem</button>
       </div>
       <div id="docs-ck-banner"></div>
       <div class="card">
@@ -3984,6 +3985,61 @@ document.getElementById('modal-view-docs-body').addEventListener('change',ev=>{
   else if(k==='doc')checklistToggleDoc(id,dv,el.dataset.f,el);
 });
 
+
+// ── Extrair imagem: clientes + o que já foi ENTREGUE (só o entregue), da seção aberta ──
+// Implantação entregue = tarefas "Concluído"; Documentos entregues = documentos marcados "Sim". O que falta não entra na imagem.
+// Clientes sem nenhuma entrega ficam de fora (a imagem avisa quantos). Respeita a busca da tela.
+async function exportarImplantacaoImagem(){
+  const div=_docsDiv;
+  const search=(document.getElementById('docs-search').value||'').toLowerCase();
+  let base=_checklistCache.filter(d=>d.divisao===div);
+  if(search)base=base.filter(d=>String(d.cnpj).toLowerCase().includes(search)||d.razaoSocial.toLowerCase().includes(search));
+  if(!base.length){toast('Nenhum cliente para exportar.','error');return;}
+  let m;
+  try{m=await ckResolve(div);}catch(e){toast('Não foi possível ler as colunas da lista: '+e.message,'error');return;}
+  const totImpl=m.tasks.filter(t=>t.field).length,totDocs=m.docs.length;
+  const linhas=base.map(d=>({
+    d,
+    impl:m.tasks.filter(t=>t.field&&d.tasks[t.id]==='Concluído').map(t=>t.name),
+    docs:m.docs.filter(x=>d.docs[x.field]==='Sim').map(x=>x.label)
+  })).filter(l=>l.impl.length||l.docs.length).sort((a,b)=>a.d.razaoSocial.localeCompare(b.d.razaoSocial,'pt-BR'));
+  const omitidos=base.length-linhas.length;
+  if(!linhas.length){toast('Nenhuma tarefa ou documento entregue ainda para exportar.','error');return;}
+  const hoje=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const logo=localStorage.getItem('triagem_logo')||LUCRALIZE_LOGO;
+  const chip=(t,bg,cor)=>`<span style="display:inline-block;margin:0 4px 4px 0;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:600;background:${bg};color:${cor};">${ctEsc(t)}</span>`;
+  const celula=(lista,total,bg,cor)=>lista.length
+    ?`<div style="font-size:10px;font-weight:700;color:${cor};margin-bottom:4px;">${lista.length}/${total}</div>${lista.map(t=>chip(t,bg,cor)).join('')}`
+    :'<span style="color:#94a3b8;font-size:11px;">—</span>';
+  const th='padding:7px 10px;font-size:10px;font-weight:700;color:#0c7488;text-transform:uppercase;letter-spacing:.4px;text-align:left;border-bottom:2px solid #0c7488;';
+  const rows=linhas.map((l,i)=>`<tr style="background:${i%2===0?'#f7fafd':'#fff'};"><td style="padding:8px 10px;vertical-align:top;width:24%;border-bottom:1px solid #e8f4f7;"><div style="font-size:12px;font-weight:700;color:#0d1328;">${ctEsc(l.d.razaoSocial)}</div><div style="font-size:10px;color:#64748b;margin-top:2px;">${ctEsc(l.d.cnpj||'—')}</div></td><td style="padding:8px 10px;vertical-align:top;width:34%;border-bottom:1px solid #e8f4f7;">${celula(l.impl,totImpl,'#d8f1f4','#0c7488')}</td><td style="padding:8px 10px;vertical-align:top;border-bottom:1px solid #e8f4f7;">${celula(l.docs,totDocs,'#dcfce7','#166534')}</td></tr>`).join('');
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;left:-9999px;top:0;width:1200px;background:#f7fafd;color:#1e293b;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  wrap.innerHTML=`
+    <div style="background:#0d1328;color:#fff;padding:12px 16px;border-radius:8px;margin-bottom:14px;display:flex;align-items:center;">
+      <div style="flex:0 0 auto;"><img src="${logo}" style="height:40px;object-fit:contain;margin-right:10px;" crossorigin="anonymous"></div>
+      <div style="flex:1;text-align:center;font-size:17px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;">Implantação / Documentos — ${ctEsc(div)}</div>
+      <div style="flex:0 0 auto;text-align:right;font-size:10px;color:#91dbe4;"><div>${hoje}</div><div style="margin-top:2px;">${linhas.length} cliente${linhas.length!==1?'s':''} com entregas</div></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e8f4f7;"><thead><tr style="background:#f0f9fb;"><th style="${th}">Cliente</th><th style="${th}">Implantação entregue</th><th style="${th}">Documentos entregues</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="margin-top:12px;font-size:10px;color:#94a3b8;text-align:center;padding-top:8px;border-top:1px solid #e8f4f7;">Central de Triagem — Lucralize · ${hoje}${omitidos?` · ${omitidos} cliente${omitidos!==1?'s':''} sem nenhuma entrega não aparece${omitidos!==1?'m':''}`:''}</div>`;
+  document.body.appendChild(wrap);
+  toast('Gerando imagem...','info');
+  try{
+    const escala=Math.min(2,32000/Math.max(wrap.offsetHeight,1));   // listas muito longas reduzem a escala para caber no limite do navegador
+    const canvas=await html2canvas(wrap,{scale:escala,useCORS:true,allowTaint:false,backgroundColor:'#f7fafd'});
+    document.body.removeChild(wrap);
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png');
+    a.download=`implantacao_documentos_${div.toLowerCase()}_${today()}.png`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    toast('Imagem exportada!');
+  }catch(e){
+    if(wrap.parentNode)document.body.removeChild(wrap);
+    toast('Erro ao gerar imagem.','error');
+    console.error(e);
+  }
+}
 
 
 // ==================== TEMA (claro / sistema / escuro) — mesma lógica do Portal Societário ====================

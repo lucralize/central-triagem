@@ -650,14 +650,16 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
 
     <!-- ==================== MÓDULO 1: DOCUMENTOS ==================== -->
     <div class="page" id="page-documentos">
-      <div class="flex-between mb-16">
-        <div class="search-bar" style="flex:1;margin-bottom:0;">
+      <div class="flex-between mb-16" style="flex-wrap:wrap;gap:8px;">
+        <div class="search-bar" style="flex:1;min-width:220px;margin-bottom:0;">
           <input type="text" class="form-control" id="docs-search" placeholder="Buscar por CNPJ ou Razão Social..." oninput="renderDocsTable()">
         </div>
-        <select class="form-control" id="docs-order" style="margin-left:8px;width:auto;flex:0 0 auto;" onchange="renderDocsTable()" title="Ordenar a lista">
+        <select class="form-control" id="docs-f-sit" style="width:auto;flex:0 0 auto;" onchange="renderDocsTable()" title="Filtrar por Situação"></select>
+        <select class="form-control" id="docs-f-comp" style="width:auto;flex:0 0 auto;" onchange="renderDocsTable()" title="Filtrar por Competência"></select>
+        <select class="form-control" id="docs-order" style="width:auto;flex:0 0 auto;" onchange="renderDocsTable()" title="Ordenar a lista">
           <option value="nome">Ordem: Nome (A–Z)</option>
-          <option value="novos">Mais recentes primeiro</option>
-          <option value="antigos">Mais antigos primeiro</option>
+          <option value="novos">Cadastro: mais recentes primeiro</option>
+          <option value="antigos">Cadastro: mais antigos primeiro</option>
         </select>
         <button class="btn btn-outline" style="margin-left:8px;" onclick="exportarImplantacaoImagem()"><i data-lucide="image"></i> Extrair Imagem</button>
       </div>
@@ -670,7 +672,8 @@ tr.row-success:hover { background: var(--success-bg-2) !important; }
                 <tr>
                   <th>CNPJ</th>
                   <th>Razão Social</th>
-                  <th>Criado em</th>
+                  <th>Situação</th>
+                  <th>Competência</th>
                   <th>Implantação</th>
                   <th>Progresso</th>
                   <th></th>
@@ -3681,7 +3684,7 @@ document.addEventListener('keydown',ev=>{if(ev.key==='Escape')alClose();});
 // e grava direto no SharePoint. As colunas de implantação são achadas pelo NOME DE EXIBIÇÃO (sem acento/maiúscula).
 // Este bloco redefine (por vir depois) spFetchChecklist, renderDocsTable, viewDocs, checklistToggleDoc e checklistMarcarRecebido.
 const CK_STATUS=['Pendente','Em Andamento','Concluído'];
-const CK_COMMON={cnpj:['CNPJ'],final:['Documentos Recebidos'],obs:['Observações'],hist:['Histórico'],sit:['Situação'],tel:['Telefone'],email:['Email','E-mail'],cond:['Condição']};   // "E-mail" perde o "e" na chave; por isso as duas grafias
+const CK_COMMON={cnpj:['CNPJ'],final:['Documentos Recebidos'],obs:['Observações'],hist:['Histórico'],sit:['Situação'],comp:['Competência'],tel:['Telefone'],email:['Email','E-mail'],cond:['Condição']};   // "E-mail" perde o "e" na chave; por isso as duas grafias
 // As colunas da lista são nomeadas JUNTAS, sem espaço nem acento e sem palavras de ligação (ex.: ComposicaoSaldosAtivoPassivo).
 // Por isso comparamos pela "chave": minúsculas, sem acento, sem espaços e sem de/da/do/e/...  →  "Pasta de Triagem" = PastaTriagem.
 const CK_LIGA=new Set(['de','da','do','das','dos','e','a','o','as','os','em','no','na','nos','nas','para','por','com','ao','aos']);
@@ -3737,6 +3740,7 @@ function ckDocsDefault(){
 function ckSwitch(div){
   _docsDiv=div;try{localStorage.setItem('ct_docs_div',div);}catch(e){}
   const q=document.getElementById('docs-search');if(q)q.value='';
+  ['docs-f-sit','docs-f-comp'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   renderDocsTable();
   if(Date.now()-_ckLoadedAt>120000)spFetchChecklist();   // reabrir a seção atualiza a lista quando ela está velha
 }
@@ -3753,7 +3757,7 @@ async function ckResolve(divisao){
   m.obs=ckFind(cols,CK_COMMON.obs);if(!m.obs)m.missing.push('Observações');
   m.hist=ckFind(cols,CK_COMMON.hist);if(!m.hist)m.missing.push('Histórico');
   // cabeçalho do cliente (Situação, Telefone, E-mail, Condição). "Cadastrado em" vem da coluna Criado do SharePoint; "Progresso" é calculado.
-  m.hdr={};[['sit','Situação'],['tel','Telefone'],['email','E-mail'],['cond','Condição']].forEach(([k,rot])=>{const c=ckFind(cols,CK_COMMON[k]);m.hdr[k]=c;if(!c)m.missing.push(rot);});
+  m.hdr={};[['sit','Situação'],['comp','Competência'],['tel','Telefone'],['email','E-mail'],['cond','Condição']].forEach(([k,rot])=>{const c=ckFind(cols,CK_COMMON[k]);m.hdr[k]=c;if(!c)m.missing.push(rot);});
   if(cfg.docs){
     m.docs=[];
     cfg.docs.forEach(d=>{const c=ckFind(cols,d.names,d.names);if(c)m.docs.push({field:c.name,label:d.label,bool:!!c.boolean});else m.missing.push(d.label);});
@@ -3794,7 +3798,7 @@ async function spFetchChecklist(){
           const collabs={};m.groups.forEach(g=>{collabs[g.key]=ckParsePessoa(g.field?f[g.field]:'');});
           const hv=k=>m.hdr[k]?ckRead(f[m.hdr[k].name]):'';
           all.push({itemId:item.id,divisao,cnpj:f[m.cnpj.name]||'',razaoSocial:f['Title']||'—',docs,docRecebidos:recebido,tasks,collabs,
-            situacao:hv('sit'),tel:hv('tel'),email:hv('email'),cond:hv('cond'),criadoEm:item.createdDateTime||f.Created||'',
+            situacao:hv('sit'),comp:ckCompTxt(hv('comp')),tel:hv('tel'),email:hv('email'),cond:hv('cond'),criadoEm:item.createdDateTime||f.Created||'',
             obs:m.obs?String(f[m.obs.name]||''):'',hist:m.hist?String(f[m.hist.name]||''):''});
         });
         url=resp['@odata.nextLink']?resp['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0',''):null;
@@ -3824,17 +3828,52 @@ function ckTasksProg(d){
   if(!ids.length)return null;
   return{feitos:ids.filter(k=>d.tasks[k]==='Concluído').length,total:ids.length};
 }
-// data de criação do item no SharePoint (Criado): ms para ordenar, dia para exibir, completo no tooltip
+// data de criação do item no SharePoint (Criado): usada só para ordenar (não é mais exibida)
 function ckCriadoInfo(d){
   const t=d.criadoEm?new Date(d.criadoEm).getTime():NaN;
-  if(isNaN(t))return{ms:NaN,dia:'—',full:''};
-  const f=obFmtTs(obTsFromIso(d.criadoEm));
-  return{ms:t,dia:f.slice(0,10),full:f};
+  return{ms:t};
+}
+// Competência é coluna de texto nas duas listas: mostra como está (só tira espaços nas pontas)
+function ckCompTxt(v){return String(v==null?'':v).trim();}
+// chave para ordenar competências (mais recente primeiro): aceita MM/AAAA, AAAA-MM, AAAA/MM e mês por extenso/abreviado (Setembro/2026, set/2026); o que não casar vai por ordem alfabética
+function ckCompKey(t){
+  const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const n=String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  let m=n.match(/(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\s*(?:[\/.\-]|de)?\s*(\d{4})/);if(m)return +m[2]*100+MES.indexOf(m[1])+1;
+  m=String(t).match(/(\d{1,2})\s*[\/.\-]\s*(\d{4})/);if(m)return +m[2]*100+ +m[1];
+  m=String(t).match(/(\d{4})\s*[\/.\-]\s*(\d{1,2})/);if(m)return +m[1]*100+ +m[2];
+  return null;
+}
+function ckCompSort(a,b){
+  const ka=ckCompKey(a),kb=ckCompKey(b);
+  if(ka!=null&&kb!=null&&ka!==kb)return kb-ka;
+  if((ka==null)!==(kb==null))return ka==null?1:-1;
+  return String(a).localeCompare(String(b),'pt-BR',{numeric:true});
+}
+// opções dos filtros = valores que existem hoje na lista da divisão (nada fixo no código); mantém a escolha atual se ainda existir
+function ckSetOpcoes(id,vals,todas,vazioTxt,temVazio){
+  const el=document.getElementById(id);if(!el)return;
+  const atual=el.value,ops=[['',todas]].concat(vals.map(v=>[v,v]));
+  if(temVazio)ops.push(['__vazio__',vazioTxt]);
+  const html=ops.map(o=>`<option value="${ctEsc(o[0])}">${ctEsc(o[1])}</option>`).join('');
+  if(el.dataset.sig!==html){el.innerHTML=html;el.dataset.sig=html;}
+  el.value=ops.some(o=>o[0]===atual)?atual:'';
+}
+function ckAtualizaFiltros(baseDiv){
+  const sits=[...new Set(baseDiv.map(d=>d.situacao).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const comps=[...new Set(baseDiv.map(d=>d.comp).filter(Boolean))].sort(ckCompSort);
+  ckSetOpcoes('docs-f-sit',sits,'Situação: todas','(sem situação)',baseDiv.some(d=>!d.situacao));
+  ckSetOpcoes('docs-f-comp',comps,'Competência: todas','(sem competência)',baseDiv.some(d=>!d.comp));
 }
 function renderDocsTable(){
   const search=document.getElementById('docs-search').value.toLowerCase();
-  let data=_checklistCache.filter(d=>d.divisao===_docsDiv);
+  const baseDiv=_checklistCache.filter(d=>d.divisao===_docsDiv);
+  ckAtualizaFiltros(baseDiv);
+  const fs=(document.getElementById('docs-f-sit')||{}).value||'',fc=(document.getElementById('docs-f-comp')||{}).value||'';
+  let data=baseDiv.slice();
   if(search)data=data.filter(d=>String(d.cnpj).toLowerCase().includes(search)||d.razaoSocial.toLowerCase().includes(search));
+  if(fs)data=data.filter(d=>fs==='__vazio__'?!d.situacao:d.situacao===fs);
+  if(fc)data=data.filter(d=>fc==='__vazio__'?!d.comp:d.comp===fc);
   const ord=(document.getElementById('docs-order')||{}).value||'nome';
   const porNome=(a,b)=>a.razaoSocial.localeCompare(b.razaoSocial,'pt-BR');
   if(ord==='nome')data.sort(porNome);
@@ -3842,20 +3881,26 @@ function renderDocsTable(){
     const dir=ord==='novos'?-1:1;
     data.sort((a,b)=>{
       const ta=ckCriadoInfo(a).ms,tb=ckCriadoInfo(b).ms,na=isNaN(ta),nb=isNaN(tb);
-      if(na!==nb)return na?1:-1;                 // sem data de criação vai sempre para o fim
+      if(na!==nb)return na?1:-1;                 // sem data de cadastro vai sempre para o fim
       if(!na&&ta!==tb)return (ta-tb)*dir;
       return porNome(a,b);                       // mesma data: nome
     });
   }
   const tbody=document.getElementById('docs-table-body'),empty=document.getElementById('docs-empty');
-  if(!data.length){tbody.innerHTML='';empty.style.display='';const p=empty.querySelector('p');if(p)p.textContent=`Nenhum cliente com checklist pendente na ${_docsDiv==='Tech'?'Tech':'Contabilidade'}.`;return;}
+  if(!data.length){
+    tbody.innerHTML='';empty.style.display='';
+    const p=empty.querySelector('p');
+    if(p)p.textContent=(baseDiv.length&&(search||fs||fc))?'Nenhum cliente encontrado com a busca e os filtros aplicados.':`Nenhum cliente com checklist pendente na ${_docsDiv==='Tech'?'Tech':'Contabilidade'}.`;
+    return;
+  }
   empty.style.display='none';
   tbody.innerHTML=data.map(d=>{
-    const cr=ckCriadoInfo(d),total=Object.keys(d.docs).length,feitos=Object.values(d.docs).filter(v=>v==='Sim').length,ip=ckTasksProg(d);
+    const total=Object.keys(d.docs).length,feitos=Object.values(d.docs).filter(v=>v==='Sim').length,ip=ckTasksProg(d);
     const impl=ip?`<span class="badge ${ip.feitos===ip.total?'badge-success':ip.feitos>0?'badge-info':'badge-warning'}" id="impl-progress-${d.itemId}">${ip.feitos}/${ip.total}</span>`:'<span class="text-gray">—</span>';
-    return `<tr><td><code style="font-size:12px;">${ctEsc(d.cnpj)}</code></td><td><strong>${ctEsc(d.razaoSocial)}</strong></td><td style="white-space:nowrap;font-size:13px;" title="${ctEsc(cr.full)}">${cr.dia}</td><td>${impl}</td><td><span class="badge ${feitos===total?'badge-success':'badge-warning'}" id="docs-progress-${d.itemId}">${feitos}/${total}</span></td><td><button class="btn btn-outline btn-sm" onclick="viewDocs('${d.itemId}','${d.divisao}')">Ver Checklist</button></td><td style="text-align:center;"><input type="checkbox" title="Marcar Documentos Recebidos como Sim" onchange="checklistMarcarRecebido('${d.itemId}','${d.divisao}',this)"></td></tr>`;
+    return `<tr><td><code style="font-size:12px;">${ctEsc(d.cnpj)}</code></td><td><strong>${ctEsc(d.razaoSocial)}</strong></td><td>${d.situacao?ctEsc(d.situacao):'<span class="text-gray">—</span>'}</td><td style="white-space:nowrap;">${d.comp?ctEsc(d.comp):'<span class="text-gray">—</span>'}</td><td>${impl}</td><td><span class="badge ${feitos===total?'badge-success':'badge-warning'}" id="docs-progress-${d.itemId}">${feitos}/${total}</span></td><td><button class="btn btn-outline btn-sm" onclick="viewDocs('${d.itemId}','${d.divisao}')">Ver Checklist</button></td><td style="text-align:center;"><input type="checkbox" title="Marcar Documentos Recebidos como Sim" onchange="checklistMarcarRecebido('${d.itemId}','${d.divisao}',this)"></td></tr>`;
   }).join('');
 }
+
 
 // ── gravação: campo(s) + linha de histórico numa única chamada ──
 async function ckPatch(itemId,divisao,fields,msg){

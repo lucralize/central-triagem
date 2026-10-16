@@ -3706,6 +3706,7 @@ function ckWrite(bool,v){return bool?(v==='Sim'):v;}
 const CK_CFG={
   Contabilidade:{
     docs:null,   // 19 documentos nas colunas fixas field_3..field_21 (CHECKLIST_DOCS), como já funciona hoje
+    grupoTriagem:['GrupoTriagem'],   // Opção Sim/Não: ao designar um responsável, a Central grava Sim (só Contabilidade)
     tasks:[
       {id:'dominio',name:'Cadastro Domínio'},{id:'sharepoint',name:'Cadastro SharePoint'},{id:'acessorias',name:'Cadastro Acessórias'},
       {id:'w3',name:'Cadastro W3'},{id:'pasta',name:'Pasta de Triagem'},{id:'sieg',name:'Cadastro SIEG'},
@@ -3764,6 +3765,7 @@ async function ckResolve(divisao){
   // cabeçalho do cliente (Situação, Telefone, E-mail, Condição). "Cadastrado em" vem da coluna Criado do SharePoint; "Progresso" é calculado.
   m.rep=ckFind(cols,CK_COMMON.rep);if(!m.rep)m.missing.push('Representante');
   m.abert=ckFind(cols,CK_COMMON.abert);if(!m.abert)m.missing.push('AberturaConcluida');else m.abert.bool=!!m.abert.boolean;
+  if(cfg.grupoTriagem){m.grupo=ckFind(cols,cfg.grupoTriagem);if(!m.grupo)m.missing.push('GrupoTriagem');else m.grupo.bool=!!m.grupo.boolean;}
   m.hdr={};[['sit','Situação'],['tel','Telefone'],['email','E-mail'],['cond','Condição']].forEach(([k,rot])=>{const c=ckFind(cols,CK_COMMON[k]);m.hdr[k]=c;if(!c)m.missing.push(rot);});
   if(cfg.docs){
     m.docs=[];
@@ -3920,6 +3922,14 @@ async function ckSetTask(itemId,divisao,taskId,valor,selEl){
     console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
   }finally{renderDocsTable();ckRenderModal();}
 }
+// Contabilidade: depois de gravar o nome do responsável, marca GrupoTriagem = Sim. Lê o valor atual no SharePoint e não grava se já for Sim.
+async function ckMarcarGrupoTriagem(itemId,divisao){
+  const m=await ckResolve(divisao);if(!m.grupo)return 'sem-coluna';
+  const cur=await spGraph('GET',`/sites/${m.siteId}/lists/${m.listId}/items/${itemId}?$expand=fields($select=${m.grupo.name})`);
+  if(ckRead((cur.fields||{})[m.grupo.name])==='Sim')return 'ja-sim';
+  await ckPatch(itemId,divisao,{[m.grupo.name]:ckWrite(m.grupo.bool,'Sim')},'[Grupo Triagem] marcado como Sim ao designar o responsável.');
+  return 'marcado';
+}
 async function ckSetCollab(itemId,divisao,key,email){
   const it=ckItem(itemId,divisao);if(!it)return;
   const m=await ckResolve(divisao),g=m.groups.find(x=>x.key===key);if(!g||!g.field)return;
@@ -3929,6 +3939,10 @@ async function ckSetCollab(itemId,divisao,key,email){
   try{
     await ckPatch(itemId,divisao,{[g.field]:ckFmtPessoa(novo)},`Colaborador (${g.short}): "${cur.nome||'—'}" → "${novo.nome||'—'}"`);
     it.collabs[key]=novo;
+    if(novo.nome&&divisao==='Contabilidade'){
+      try{await ckMarcarGrupoTriagem(itemId,divisao);}
+      catch(e2){console.error(e2);toast('Responsável salvo, mas não foi possível marcar GrupoTriagem: '+e2.message,'error');}
+    }
     if(novo.nome)showTeamsToast(`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pelo cliente ${it.razaoSocial} (${divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);
   }catch(e){
     console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');

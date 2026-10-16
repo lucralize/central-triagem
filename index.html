@@ -3706,13 +3706,12 @@ function ckWrite(bool,v){return bool?(v==='Sim'):v;}
 const CK_CFG={
   Contabilidade:{
     docs:null,   // 19 documentos nas colunas fixas field_3..field_21 (CHECKLIST_DOCS), como já funciona hoje
-    grupoTriagem:['GrupoTriagem'],   // Opção Sim/Não: ao designar um responsável, a Central grava Sim (só Contabilidade)
     tasks:[
       {id:'dominio',name:'Cadastro Domínio'},{id:'sharepoint',name:'Cadastro SharePoint'},{id:'acessorias',name:'Cadastro Acessórias'},
       {id:'w3',name:'Cadastro W3'},{id:'pasta',name:'Pasta de Triagem'},{id:'sieg',name:'Cadastro SIEG'},
       {id:'reuniao',name:'Reunião de Onboarding'},{id:'cobranca',name:'Cobrança de Docs e Acessos'},
       {id:'procecac',name:'Procuração ECAC'},{id:'procfgts',name:'Procuração FGTS'}],   // colunas ProcuracaoEcac e ProcuracaoFGTS (Opção: Pendente / Em Andamento / Concluído)
-    groups:[{key:'C',short:'Responsável',colName:'Responsável Onboarding',col:['ResponsavelOnboarding'],role:'Todos os cadastros + Reunião + Docs',
+    groups:[{key:'C',short:'Responsável',colName:'Responsável Onboarding',col:['ResponsavelOnboarding'],triagem:['GrupoTriagem'],role:'Todos os cadastros + Reunião + Docs',
       tasks:['dominio','sharepoint','acessorias','w3','pasta','sieg','reuniao','cobranca','procecac','procfgts']}]
   },
   Tech:{
@@ -3730,8 +3729,8 @@ const CK_CFG={
       {id:'pasta',name:'Pasta de Triagem'},{id:'contato',name:'Primeiro Contato',extra:['Primeiro Contato informações iniciais']},
       {id:'cobranca',name:'Cobrança de Docs e Acessos'}],
     groups:[
-      {key:'A',short:'OneFlow',colName:'Responsável OneFlow',col:['ResponsavelOneflow'],role:'OneFlow + Agendamento + Reunião',tasks:['oneflow','agenda','reuniao']},
-      {key:'B',short:'Cadastros',colName:'Responsável Cadastros',col:['ResponsavelCadastros'],role:'Cadastros + Primeiro Contato + Docs',tasks:['sharepoint','acessorias','w3','pasta','contato','cobranca']}]
+      {key:'A',short:'OneFlow',colName:'Responsável OneFlow',col:['ResponsavelOneflow'],triagem:['GrupoTriagemOne'],role:'OneFlow + Agendamento + Reunião',tasks:['oneflow','agenda','reuniao']},
+      {key:'B',short:'Cadastros',colName:'Responsável Cadastros',col:['ResponsavelCadastros'],triagem:['GrupoTriagemCadastro'],role:'Cadastros + Primeiro Contato + Docs',tasks:['sharepoint','acessorias','w3','pasta','contato','cobranca']}]
   }
 };
 let _ckMap={},_ckView={itemId:null,divisao:null,tab:'impl'};
@@ -3765,14 +3764,19 @@ async function ckResolve(divisao){
   // cabeçalho do cliente (Situação, Telefone, E-mail, Condição). "Cadastrado em" vem da coluna Criado do SharePoint; "Progresso" é calculado.
   m.rep=ckFind(cols,CK_COMMON.rep);if(!m.rep)m.missing.push('Representante');
   m.abert=ckFind(cols,CK_COMMON.abert);if(!m.abert)m.missing.push('AberturaConcluida');else m.abert.bool=!!m.abert.boolean;
-  if(cfg.grupoTriagem){m.grupo=ckFind(cols,cfg.grupoTriagem);if(!m.grupo)m.missing.push('GrupoTriagem');else m.grupo.bool=!!m.grupo.boolean;}
   m.hdr={};[['sit','Situação'],['tel','Telefone'],['email','E-mail'],['cond','Condição']].forEach(([k,rot])=>{const c=ckFind(cols,CK_COMMON[k]);m.hdr[k]=c;if(!c)m.missing.push(rot);});
   if(cfg.docs){
     m.docs=[];
     cfg.docs.forEach(d=>{const c=ckFind(cols,d.names,d.names);if(c)m.docs.push({field:c.name,label:d.label,bool:!!c.boolean});else m.missing.push(d.label);});
   }else m.docs=CHECKLIST_DOCS.map(d=>({field:d.field,label:d.label,bool:!!(cols.find(c=>c.name===d.field)||{}).boolean}));
   m.tasks=cfg.tasks.map(t=>{const c=ckFind(cols,[t.name].concat(t.extra||[]));if(!c)m.missing.push(t.name);return{id:t.id,name:t.name,field:c?c.name:null};});
-  m.groups=cfg.groups.map(g=>{const c=ckFind(cols,g.col);if(!c)m.missing.push(g.colName);return Object.assign({},g,{field:c?c.name:null});});
+  // triagem: coluna Sim/Não de cada grupo de responsável (Contabilidade: GrupoTriagem; Tech: GrupoTriagemOne e GrupoTriagemCadastro)
+  m.groups=cfg.groups.map(g=>{
+    const c=ckFind(cols,g.col);if(!c)m.missing.push(g.colName);
+    let tf=null,tb=false;
+    if(g.triagem){const t=ckFind(cols,g.triagem);if(t){tf=t.name;tb=!!t.boolean;}else m.missing.push(g.triagem[0]);}
+    return Object.assign({},g,{field:c?c.name:null,triagemField:tf,triagemBool:tb});
+  });
   _ckMap[divisao]=m;
   return m;
 }
@@ -3922,12 +3926,15 @@ async function ckSetTask(itemId,divisao,taskId,valor,selEl){
     console.error(e);toast('Erro ao salvar no SharePoint: '+e.message,'error');
   }finally{renderDocsTable();ckRenderModal();}
 }
-// Contabilidade: depois de gravar o nome do responsável, marca GrupoTriagem = Sim. Lê o valor atual no SharePoint e não grava se já for Sim.
-async function ckMarcarGrupoTriagem(itemId,divisao){
-  const m=await ckResolve(divisao);if(!m.grupo)return 'sem-coluna';
-  const cur=await spGraph('GET',`/sites/${m.siteId}/lists/${m.listId}/items/${itemId}?$expand=fields($select=${m.grupo.name})`);
-  if(ckRead((cur.fields||{})[m.grupo.name])==='Sim')return 'ja-sim';
-  await ckPatch(itemId,divisao,{[m.grupo.name]:ckWrite(m.grupo.bool,'Sim')},'[Grupo Triagem] marcado como Sim ao designar o responsável.');
+// Depois de gravar o nome do responsável de um grupo, marca a coluna de triagem desse grupo = Sim.
+// Lê o valor atual no SharePoint e não grava se já for Sim.
+async function ckMarcarGrupoTriagem(itemId,divisao,key){
+  const m=await ckResolve(divisao),g=m.groups.find(x=>x.key===key);
+  if(!g||!g.triagemField)return 'sem-coluna';
+  const cur=await spGraph('GET',`/sites/${m.siteId}/lists/${m.listId}/items/${itemId}?$expand=fields($select=${g.triagemField})`);
+  if(ckRead((cur.fields||{})[g.triagemField])==='Sim')return 'ja-sim';
+  const rot=divisao==='Tech'?`[Grupo Triagem ${g.short}]`:'[Grupo Triagem]';
+  await ckPatch(itemId,divisao,{[g.triagemField]:ckWrite(g.triagemBool,'Sim')},`${rot} marcado como Sim ao designar o responsável.`);
   return 'marcado';
 }
 async function ckSetCollab(itemId,divisao,key,email){
@@ -3939,9 +3946,9 @@ async function ckSetCollab(itemId,divisao,key,email){
   try{
     await ckPatch(itemId,divisao,{[g.field]:ckFmtPessoa(novo)},`Colaborador (${g.short}): "${cur.nome||'—'}" → "${novo.nome||'—'}"`);
     it.collabs[key]=novo;
-    if(novo.nome&&divisao==='Contabilidade'){
-      try{await ckMarcarGrupoTriagem(itemId,divisao);}
-      catch(e2){console.error(e2);toast('Responsável salvo, mas não foi possível marcar GrupoTriagem: '+e2.message,'error');}
+    if(novo.nome&&g.triagem){
+      try{await ckMarcarGrupoTriagem(itemId,divisao,key);}
+      catch(e2){console.error(e2);toast(`Responsável salvo, mas não foi possível marcar ${g.triagem[0]}: `+e2.message,'error');}
     }
     if(novo.nome)showTeamsToast(`(simulado) Chat → @${novo.nome}: Você foi designado(a) como responsável pelo cliente ${it.razaoSocial} (${divisao}). Acesse o Portal de Onboarding para iniciar o processo.`);
   }catch(e){

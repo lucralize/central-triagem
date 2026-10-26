@@ -2333,6 +2333,9 @@ textarea::placeholder {
     <div class="nav-item nav-sub" onclick="goTo('configuracoes')" id="nav-configuracoes" style="display:none">
       <span class="icon"><i data-lucide="settings"></i></span> Configurações
     </div>
+    <div class="nav-item nav-sub" onclick="goTo('logs')" id="nav-logs" style="display:none">
+      <span class="icon"><i data-lucide="scroll-text"></i></span> Logs
+    </div>
     </div>
   </nav>
 </nav>
@@ -2604,6 +2607,40 @@ textarea::placeholder {
             <button class="btn btn-secondary" id="cfg-save" onclick="cfgSave()">Salvar</button>
             <span id="cfg-status" class="text-sm"></span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== LOGS (só administradores) ==================== -->
+    <div class="page" id="page-logs">
+      <div class="flex-between mb-16">
+        <div class="search-bar" style="flex:1;margin-bottom:0;flex-wrap:wrap;">
+          <select class="form-control" style="width:130px;" id="lg-mes" title="Mês" onchange="lgCarregaMes()"></select>
+          <input type="date" class="form-control" style="width:150px;" id="lg-de" title="De" onchange="lgFiltrar()">
+          <input type="date" class="form-control" style="width:150px;" id="lg-ate" title="Até" onchange="lgFiltrar()">
+          <select class="form-control" style="width:230px;" id="lg-usuario" onchange="lgFiltrar()"><option value="">Todos os usuários</option></select>
+          <select class="form-control" style="width:170px;" id="lg-acao" onchange="lgFiltrar()"><option value="">Todas as ações</option></select>
+          <input type="text" class="form-control" id="lg-busca" placeholder="Buscar no texto..." oninput="lgFiltrar()">
+        </div>
+        <button class="btn btn-outline" style="margin-left:8px;" onclick="lgOpen()"><i data-lucide="refresh-cw"></i> Atualizar</button>
+        <button class="btn btn-outline" style="margin-left:8px;" onclick="lgBaixar()"><i data-lucide="download"></i> Baixar .txt</button>
+        <button class="btn btn-outline" style="margin-left:8px;" onclick="lgAbrirPasta()"><i data-lucide="folder-open"></i> Abrir pasta</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px;"><i data-lucide="info"></i>Cada mês fica num arquivo de texto (log-AAAA-MM.txt) na pasta "logs", ao lado da planilha da Central. Esta tela é só para consulta: não altera nem apaga nada do log. Horário de Brasília. Quem tem acesso à pasta no SharePoint também consegue abrir o arquivo por lá.</div>
+      <div class="card">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;"><span id="lg-status" class="text-sm"></span><span id="lg-count" class="text-sm text-gray"></span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data / hora</th><th>Usuário</th><th>Ação</th><th>Tela</th><th>Detalhe</th></tr></thead>
+              <tbody id="lg-body"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="lg-empty" style="display:none;">
+            <div class="icon"><i data-lucide="scroll-text"></i></div>
+            <p>Nenhum registro encontrado.</p>
+          </div>
+          <div style="text-align:center;margin-top:12px;"><button class="btn btn-outline" id="lg-mais" style="display:none;" onclick="lgMaisLinhas()">Mostrar mais</button></div>
         </div>
       </div>
     </div>
@@ -3372,6 +3409,7 @@ async function spGraph(method, path, body, extraHeaders, tentativa = 0) {
     e.status = res.status;
     throw e;
   }
+  if (method !== 'GET' && method !== 'HEAD') lgAuto(method, path, body); // log de quem gravou o quê
   if (res.status === 204) return null;
   return res.json();
 }
@@ -3468,6 +3506,10 @@ async function ctAuthenticate() {
   } else {
     if (loadErr) throw loadErr;
     if (!row || row.ativo !== 'Sim' || !CT_TIPOS.includes(row.tipo)) {
+      lgRegistrar('ACESSO_NEGADO', row ? 'usuário inativo ou tipo inválido' : 'e-mail não cadastrado', {
+        nome: me.displayName,
+        email: emails[0]
+      });
       const d = new Error('DENIED');
       d.denied = true;
       throw d;
@@ -3489,6 +3531,9 @@ function ctEnterApp() {
   document.getElementById('header-user-chip').style.display = '';
   document.getElementById('btn-logout').style.display = '';
   ctApplyPermissions();
+  lgRecuperaFila(); // linhas que ficaram sem gravar em outro acesso deste navegador
+  LG_ULTIMA_TELA = null;
+  lgRegistrar('ENTROU', '');
   goTo('painel');
   spSyncCertsPull();
   spFetchClientStatuses();
@@ -3500,6 +3545,8 @@ function ctEnterApp() {
 function ctLogout() {
   if (!confirm('Deseja sair do portal?')) return;
   localStorage.setItem(CT_LOGOUT_FLAG, '1');
+  lgRegistrar('SAIU', '');
+  lgFlush(); // grava já, antes de limpar a sessão
   SESSION = null;
   _spToken = null;
   CT_USERS = [];
@@ -3520,7 +3567,7 @@ function ctLogout() {
 // ── permissões (organização das telas; a segurança real é a permissão da pasta no SharePoint) ──
 function ctCanAccess(page) {
   if (!SESSION) return false;
-  if (page === 'configuracoes') return ctIsAdminTipo(SESSION.tipo); // só administradores
+  if (page === 'configuracoes' || page === 'logs') return ctIsAdminTipo(SESSION.tipo); // só administradores
   const mod = CT_PAGE_MODULE[page];
   if (!mod) return true;
   return ctIsAdminTipo(SESSION.tipo) || SESSION.modulos.includes(mod);
@@ -3535,12 +3582,13 @@ function ctApplyPermissions() {
     if (el) el.style.display = ok ? '' : 'none';
   };
   show('nav-configuracoes', ctCanAccess('configuracoes'));
+  show('nav-logs', ctCanAccess('logs'));
   show('nav-docs-head', ctCanAccess('docs-cont') || ctCanAccess('docs-tech'));
   show('nav-certs-head', ctCanAccess('certs-cont') || ctCanAccess('certs-tech'));
   show('nav-saida-head', ctCanAccess('saida-cont') || ctCanAccess('saida-tech'));
   show('nav-susp-head', ctCanAccess('suspensos'));
   show('nav-dem-head', ctCanAccess('dem-semanal') || ctCanAccess('dem-colab'));
-  show('nav-adm-head', ctCanAccess('usuarios') || ctCanAccess('configuracoes'));
+  show('nav-adm-head', ctCanAccess('usuarios') || ctCanAccess('configuracoes') || ctCanAccess('logs'));
   navRestore();
 }
 function ctIsProtected(u) {
@@ -3749,6 +3797,7 @@ async function ctDeleteUser(original) {
       if (!cur) return; // já não existe: nada a apagar
       if (ctSig(cur.u) !== ctSig(original)) throw ctConflict();
       await spGraph('DELETE', `${wb}/tables/${CT_USERS_FILE.table}/rows/itemAt(index=${cur.idx})`, null, { 'workbook-session-id': sid });
+      lgRegistrar('EXCLUIU', `Usuário ${original.email}`);
     })
   );
   const key = original.email.toLowerCase();
@@ -4189,7 +4238,8 @@ const pages = {
   'saida-tech': 'Saída de Clientes — Tech',
   'dem-semanal': 'Demandas — Semanal',
   'dem-colab': 'Demandas — Por colaborador',
-  configuracoes: 'Configurações'
+  configuracoes: 'Configurações',
+  logs: 'Logs de usuários'
 };
 const subtitles = {
   painel: 'Visão consolidada de todas as pendências',
@@ -4206,7 +4256,8 @@ const subtitles = {
   'saida-tech': 'Clientes do Tech em cancelamento',
   'dem-semanal': 'Demandas da semana, por colaborador',
   'dem-colab': 'Demandas do dia, por colaborador',
-  configuracoes: 'Parâmetros da Central'
+  configuracoes: 'Parâmetros da Central',
+  logs: 'Quem fez o quê na Central, dia a dia'
 };
 let currentPage = 'painel',
   currentEditId = null,
@@ -4250,11 +4301,14 @@ function goTo(page) {
   document.getElementById('page-title').textContent = pages[page] || page;
   document.getElementById('page-subtitle').textContent = subtitles[page] || '';
   currentPage = page;
+  if (page !== LG_ULTIMA_TELA) lgRegistrar('ABRIU', '');
+  LG_ULTIMA_TELA = page;
   const fns = {
     painel: renderPainel,
     'dem-semanal': () => dmOpen('semanal'),
     'dem-colab': () => dmOpen('colab'),
     configuracoes: cfgOpen,
+    logs: lgOpen,
     'docs-cont': () => ckSwitch('Contabilidade'),
     'docs-tech': () => ckSwitch('Tech'),
     'certs-cont': () => ckCertsSwitch('Contabilidade'),
@@ -7124,7 +7178,11 @@ async function dmBatch(patches, deleteIds) {
       if (deleteIds.includes(String(v[0] == null ? '' : v[0]).trim())) idx.push(i);
     });
     idx.sort((a, b) => b - a);
-    for (const i of idx) await spGraph('DELETE', `${wb}/tables/${DM_TABLE}/rows/itemAt(index=${i})`, null, h);
+    for (const i of idx) {
+      await spGraph('DELETE', `${wb}/tables/${DM_TABLE}/rows/itemAt(index=${i})`, null, h);
+      const d = dmRowToObj(rows[i]);
+      lgRegistrar('EXCLUIU', `Demanda ${d.id} "${d.titulo}" — ${d.responsavel}, ${d.data}`);
+    }
   });
   outs.forEach(dmRemember);
   deleteIds.forEach(id => {
@@ -7949,6 +8007,379 @@ async function dmPollBell() {
   if (String(currentPage).startsWith('dem-') && !document.querySelector('.modal-overlay.open')) dmRender();
 }
 
+// ==================== LOGS DE USUÁRIOS (só administradores) ====================
+// Cada ação importante vira uma linha de texto, gravada num .txt por mês na pasta "logs" do SharePoint
+// (ao lado da planilha CentralTriagem.xlsx):  <pasta da planilha>/logs/log-AAAA-MM.txt
+// Formato da linha:  AAAA-MM-DD HH:MM:SS | Nome | e-mail | AÇÃO | Tela | Detalhe
+// Como funciona:
+//   • lgRegistrar() só coloca a linha numa fila (e guarda uma cópia no navegador, para não perder se a aba fechar);
+//   • lgFlush() grava a fila no arquivo: lê o arquivo do mês, acrescenta as linhas e regrava com "If-Match" (eTag).
+//     Se outra pessoa gravou no meio (erro 412/409), lê de novo e tenta outra vez — por isso ninguém apaga o log do outro;
+//   • as gravações do sistema (spGraph) são registradas automaticamente por lgAuto();
+//   • a tela "Logs" (só administradores) só LÊ o arquivo: não há nenhuma função de alterar ou apagar linhas.
+// O log nunca derruba o sistema: qualquer erro aqui só vai para o console e a linha continua na fila.
+// Atenção: quem tem acesso à pasta no SharePoint também consegue abrir o .txt por lá; a tela só esconde o botão de quem não é administrador.
+const LG_KEY_FILA = 'ct_log_fila',
+  LG_FILA_MAX = 500,
+  LG_ESPERA_MS = 8000,
+  LG_TENTATIVAS = 6,
+  LG_LINHAS_PAGINA = 300,
+  LG_FUSO = 'America/Sao_Paulo';
+const LG_ACOES = ['ENTROU', 'SAIU', 'ACESSO_NEGADO', 'ABRIU', 'CRIOU', 'ALTEROU', 'EXCLUIU'];
+let LG_FILA = [],
+  LG_TIMER = null,
+  LG_OCUPADO = false,
+  LG_ULTIMA_TELA = null,
+  LG_AVISOU = false,
+  LG_LIMITE = 300,
+  LG_VIEW = { texto: '', linhas: [], pastaUrl: '' };
+const lgNomeMes = mes => `log-${mes}.txt`; // mes = 'AAAA-MM'
+
+function lgAtivo() {
+  return !!(CT_USERS_FILE.driveId && CT_USERS_FILE.path);
+}
+function lgPasta() {
+  return CT_USERS_FILE.path.replace(/[^/]+$/, 'logs'); // mesma pasta da planilha + "/logs"
+}
+function lgCaminho(nome) {
+  return `/drives/${CT_USERS_FILE.driveId}/root:/${lgPasta().split('/').map(encodeURIComponent).join('/')}${nome ? '/' + encodeURIComponent(nome) : ''}`;
+}
+// "2026-10-26 13:10:22" no horário de Brasília, independente do fuso do computador
+function lgAgora() {
+  return new Date().toLocaleString('sv-SE', { timeZone: LG_FUSO });
+}
+// uma linha só: sem quebra de linha e sem o separador " | " dentro dos textos
+function lgLimpa(s, max) {
+  const t = String(s == null ? '' : s)
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s*\|\s*/g, ' / ')
+    .trim();
+  return t.length > (max || 160) ? t.slice(0, (max || 160) - 1) + '…' : t;
+}
+function lgTelaAtual() {
+  return pages[currentPage] || currentPage || '';
+}
+function lgSalvaFila() {
+  try {
+    if (LG_FILA.length) localStorage.setItem(LG_KEY_FILA, JSON.stringify(LG_FILA));
+    else localStorage.removeItem(LG_KEY_FILA);
+  } catch (e) {
+    /* sem armazenamento local: a fila continua só em memória */
+  }
+}
+function lgRecuperaFila() {
+  try {
+    const salva = JSON.parse(localStorage.getItem(LG_KEY_FILA) || '[]');
+    if (Array.isArray(salva))
+      salva.forEach(l => {
+        if (typeof l === 'string' && LG_FILA.length < LG_FILA_MAX && !LG_FILA.includes(l)) LG_FILA.push(l);
+      });
+  } catch (e) {
+    /* cópia local ilegível: ignora */
+  }
+}
+// quem = { nome, email }; sem ele usa a pessoa logada
+function lgRegistrar(acao, detalhe, quem) {
+  if (!lgAtivo()) return;
+  const u = quem || SESSION;
+  if (!u) return;
+  const linha = [lgAgora(), lgLimpa(u.nome, 60), lgLimpa(u.email, 80), acao, lgLimpa(lgTelaAtual(), 60), lgLimpa(detalhe, 400)].join(' | ');
+  if (LG_FILA.length >= LG_FILA_MAX) LG_FILA.shift(); // fila cheia (gravação falhando): descarta a mais antiga
+  LG_FILA.push(linha);
+  lgSalvaFila();
+  clearTimeout(LG_TIMER);
+  LG_TIMER = setTimeout(lgFlush, LG_ESPERA_MS);
+}
+
+// ── registro automático das gravações feitas pelo sistema ──
+function lgNomeLista(listId) {
+  const grupos = [
+    ['Certificados', _spListIds],
+    ['Clientes (cadastro-mestre)', _spMasterListIds],
+    ['Checklist de documentos', _spChecklistListIds],
+    ['Saída / cancelamento', _spCancelListIds]
+  ];
+  for (const [rotulo, mapa] of grupos) for (const div in mapa) if (mapa[div] === listId) return `${rotulo} ${div}`;
+  return 'Lista do SharePoint';
+}
+function lgVerbo(method, ehCriacao) {
+  return method === 'DELETE' ? 'EXCLUIU' : method === 'POST' || ehCriacao ? 'CRIOU' : 'ALTEROU';
+}
+function lgAuto(method, path, body) {
+  if (!lgAtivo() || !SESSION) return;
+  try {
+    if (/\/workbook\/(createSession|closeSession)$/.test(path)) return;
+    let m = path.match(/\/workbook\/tables\/(\w+)\/rows\/(add|itemAt)/);
+    if (m) {
+      if (method === 'DELETE') return; // exclusão em tabela só tem o número da linha: quem exclui registra com o nome (lgRegistrar)
+      const v = body && body.values && body.values[0];
+      if (!v) return;
+      const verbo = lgVerbo(method, m[2] === 'add');
+      if (m[1] === CT_USERS_FILE.table) {
+        const u = ctRowToUser(v);
+        return lgRegistrar(verbo, `Usuário ${u.email} — tipo ${u.tipo}, ativo ${u.ativo}, módulos: ${u.modulos}`);
+      }
+      if (m[1] === DM_TABLE) {
+        const d = dmRowToObj(v);
+        return lgRegistrar(verbo, `Demanda ${d.id} "${d.titulo}" — ${d.responsavel}, ${d.data}, situação ${d.st}`);
+      }
+      if (m[1] === DM_CFG_TABLE) return lgRegistrar(verbo, `Configuração ${v[0]} = ${v[1]}`);
+      return lgRegistrar(verbo, `Tabela ${m[1]}`);
+    }
+    m = path.match(/\/lists\/([^/]+)\/items(?:\/([^/?]+))?/);
+    if (m) {
+      const campos = Object.entries((body && (body.fields || body)) || {})
+        .map(([k, val]) => {
+          const t = String(val == null ? '' : val);
+          return t.length <= 40 ? `${k}=${t}` : k; // valores longos (histórico, observações) entram só pelo nome do campo
+        })
+        .join(', ');
+      return lgRegistrar(lgVerbo(method), `${lgNomeLista(m[1])}${m[2] ? ' item ' + m[2] : ''}${campos ? ' — ' + campos : ''}`);
+    }
+    lgRegistrar(lgVerbo(method), `${method} ${path}`);
+  } catch (e) {
+    console.warn('Log automático falhou:', e);
+  }
+}
+
+// ── gravação no SharePoint ──
+async function lgGraph(token, metodo, caminho, opc) {
+  const o = opc || {};
+  const res = await fetch(`https://graph.microsoft.com/v1.0${caminho}`, {
+    method: metodo,
+    headers: Object.assign({ Authorization: `Bearer ${token}` }, o.headers || {}),
+    cache: 'no-store',
+    body: o.body
+  });
+  if (res.status === 404 && o.aceita404) return null;
+  if (!res.ok) {
+    const e = new Error(`Log ${metodo} -> ${res.status}`);
+    e.status = res.status;
+    throw e;
+  }
+  return res.status === 204 ? null : res.json();
+}
+async function lgLerTexto(item, token, nome) {
+  const url = item && item['@microsoft.graph.downloadUrl'];
+  if (!url) return '';
+  try {
+    const r = await fetch(url, { cache: 'no-store' }); // link temporário já autorizado: não leva o token
+    if (r.ok) return r.text();
+  } catch (e) {
+    console.warn('Log: link direto bloqueado, lendo pelo Graph:', e.message);
+  }
+  const r2 = await fetch(`https://graph.microsoft.com/v1.0${lgCaminho(nome)}:/content`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store'
+  });
+  if (!r2.ok) throw new Error('Log: leitura do arquivo -> ' + r2.status);
+  return r2.text();
+}
+async function lgAcrescenta(token, mes, linhas) {
+  const nome = lgNomeMes(mes);
+  const novo = linhas.join('\r\n') + '\r\n';
+  for (let i = 0; i < LG_TENTATIVAS; i++) {
+    const item = await lgGraph(token, 'GET', lgCaminho(nome), { aceita404: true });
+    const tipo = { 'Content-Type': 'text/plain; charset=utf-8' };
+    try {
+      if (!item) {
+        await lgGraph(token, 'PUT', `${lgCaminho(nome)}:/content?@microsoft.graph.conflictBehavior=fail`, { headers: tipo, body: novo });
+      } else {
+        const atual = await lgLerTexto(item, token, nome);
+        const sep = atual && !/\n$/.test(atual) ? '\r\n' : '';
+        await lgGraph(token, 'PUT', `${lgCaminho(nome)}:/content`, {
+          headers: Object.assign({ 'If-Match': item.eTag }, tipo),
+          body: atual + sep + novo
+        });
+      }
+      return;
+    } catch (e) {
+      if ((e.status === 412 || e.status === 409 || e.status === 423) && i < LG_TENTATIVAS - 1) {
+        await ctSleep(300 + Math.random() * 900); // outra pessoa gravou ao mesmo tempo: lê de novo e repete
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+async function lgFlush() {
+  clearTimeout(LG_TIMER);
+  if (LG_OCUPADO || !LG_FILA.length || !lgAtivo() || !_spToken) return;
+  LG_OCUPADO = true;
+  const token = _spToken; // o logout limpa o token: guarda o dele para terminar a gravação
+  const lote = LG_FILA.splice(0);
+  try {
+    const porMes = {};
+    lote.forEach(l => (porMes[l.slice(0, 7)] = porMes[l.slice(0, 7)] || []).push(l));
+    for (const mes of Object.keys(porMes).sort()) {
+      try {
+        await lgAcrescenta(token, mes, porMes[mes]);
+      } catch (e) {
+        LG_FILA.unshift(...porMes[mes]); // não gravou: volta para a fila e tenta na próxima
+        throw e;
+      }
+    }
+  } catch (e) {
+    if (!LG_AVISOU) console.warn('Log não gravado (será tentado de novo):', e.message);
+    LG_AVISOU = true;
+  } finally {
+    LG_OCUPADO = false;
+    LG_FILA = LG_FILA.slice(-LG_FILA_MAX);
+    lgSalvaFila();
+    if (LG_FILA.length) LG_TIMER = setTimeout(lgFlush, LG_ESPERA_MS * 4);
+  }
+}
+
+// ── tela "Logs" ──
+async function lgOpen() {
+  if (!dmIsAdmin()) return;
+  const st = document.getElementById('lg-status');
+  if (!lgAtivo()) {
+    st.textContent = 'O endereço da planilha precisa estar configurado por driveId/path para o log funcionar.';
+    st.className = 'text-sm cfg-err';
+    return;
+  }
+  st.textContent = 'Carregando...';
+  st.className = 'text-gray text-sm';
+  try {
+    await lgFlush(); // grava antes o que ainda está na fila
+    const pasta = await lgGraph(_spToken, 'GET', `${lgCaminho('')}?$select=webUrl`, { aceita404: true });
+    LG_VIEW.pastaUrl = (pasta && pasta.webUrl) || '';
+    const lista = pasta ? await ctGraphAll(`${lgCaminho('')}:/children?$select=name&$top=200`) : [];
+    const meses = lista
+      .map(f => (f.name.match(/^log-(\d{4}-\d{2})\.txt$/) || [])[1])
+      .filter(Boolean)
+      .sort()
+      .reverse();
+    const mesAtual = lgAgora().slice(0, 7);
+    if (!meses.includes(mesAtual)) meses.unshift(mesAtual);
+    const sM = document.getElementById('lg-mes'),
+      mAntes = sM.value;
+    sM.innerHTML = meses.map(m => `<option value="${ctEsc(m)}">${ctEsc(m.split('-').reverse().join('/'))}</option>`).join('');
+    sM.value = meses.includes(mAntes) ? mAntes : mesAtual;
+    await lgCarregaMes();
+  } catch (e) {
+    console.error(e);
+    st.textContent = 'Não foi possível ler os logs: ' + (e.status === 403 ? 'sem permissão na pasta.' : e.message);
+    st.className = 'text-sm cfg-err';
+  }
+}
+async function lgCarregaMes() {
+  const mes = document.getElementById('lg-mes').value,
+    st = document.getElementById('lg-status');
+  if (!/^\d{4}-\d{2}$/.test(mes)) return;
+  st.textContent = 'Carregando...';
+  st.className = 'text-gray text-sm';
+  try {
+    const item = await lgGraph(_spToken, 'GET', lgCaminho(lgNomeMes(mes)), { aceita404: true });
+    LG_VIEW.texto = item ? await lgLerTexto(item, _spToken, lgNomeMes(mes)) : '';
+    LG_VIEW.linhas = LG_VIEW.texto
+      .split(/\r?\n/)
+      .concat(LG_FILA.filter(l => l.startsWith(mes))) // linhas ainda não gravadas
+      .filter(l => l.trim())
+      .map(l => {
+        const p = l.split(' | ');
+        return {
+          quando: p[0] || '',
+          nome: p[1] || '',
+          email: p[2] || '',
+          acao: p[3] || '',
+          tela: p[4] || '',
+          detalhe: p.slice(5).join(' | ')
+        };
+      })
+      .reverse(); // mais recente primeiro
+    const sU = document.getElementById('lg-usuario'),
+      sA = document.getElementById('lg-acao'),
+      uAtual = sU.value,
+      aAtual = sA.value;
+    const usuarios = [...new Set(LG_VIEW.linhas.map(l => l.email))].sort();
+    sU.innerHTML =
+      '<option value="">Todos os usuários</option>' + usuarios.map(u => `<option value="${ctEsc(u)}">${ctEsc(u)}</option>`).join('');
+    sU.value = usuarios.includes(uAtual) ? uAtual : '';
+    sA.innerHTML = '<option value="">Todas as ações</option>' + LG_ACOES.map(a => `<option value="${a}">${a}</option>`).join('');
+    sA.value = aAtual;
+    st.textContent = '';
+    LG_LIMITE = LG_LINHAS_PAGINA;
+    lgRender();
+  } catch (e) {
+    console.error(e);
+    st.textContent = 'Não foi possível ler este mês: ' + e.message;
+    st.className = 'text-sm cfg-err';
+  }
+}
+function lgFiltrar() {
+  LG_LIMITE = LG_LINHAS_PAGINA;
+  lgRender();
+}
+function lgMaisLinhas() {
+  LG_LIMITE += LG_LINHAS_PAGINA;
+  lgRender();
+}
+function lgFiltrado() {
+  const u = document.getElementById('lg-usuario').value,
+    a = document.getElementById('lg-acao').value,
+    de = document.getElementById('lg-de').value,
+    ate = document.getElementById('lg-ate').value,
+    q = document.getElementById('lg-busca').value.trim().toLowerCase();
+  return LG_VIEW.linhas.filter(l => {
+    const dia = l.quando.slice(0, 10);
+    return (
+      (!u || l.email === u) &&
+      (!a || l.acao === a) &&
+      (!de || dia >= de) &&
+      (!ate || dia <= ate) &&
+      (!q || [l.nome, l.email, l.acao, l.tela, l.detalhe].join(' ').toLowerCase().includes(q))
+    );
+  });
+}
+function lgRender() {
+  const lista = lgFiltrado(),
+    corpo = document.getElementById('lg-body'),
+    vazio = document.getElementById('lg-empty'),
+    mais = document.getElementById('lg-mais');
+  const cor = {
+    SAIU: 'badge-gray',
+    ACESSO_NEGADO: 'badge-danger',
+    EXCLUIU: 'badge-danger',
+    CRIOU: 'badge-success',
+    ALTEROU: 'badge-warning'
+  };
+  corpo.innerHTML = lista
+    .slice(0, LG_LIMITE)
+    .map(
+      l =>
+        `<tr><td style="white-space:nowrap">${ctEsc(l.quando.slice(0, 10).split('-').reverse().join('/'))} ${ctEsc(l.quando.slice(11))}</td><td>${ctEsc(l.nome)}<div class="text-sm text-gray">${ctEsc(l.email)}</div></td>` +
+        `<td><span class="badge ${cor[l.acao] || 'badge-info'}">${ctEsc(l.acao)}</span></td><td>${ctEsc(l.tela)}</td><td style="word-break:break-word">${ctEsc(l.detalhe)}</td></tr>`
+    )
+    .join('');
+  vazio.style.display = lista.length ? 'none' : '';
+  mais.style.display = lista.length > LG_LIMITE ? '' : 'none';
+  document.getElementById('lg-count').textContent = lista.length
+    ? `Mostrando ${Math.min(LG_LIMITE, lista.length)} de ${lista.length} registro(s)`
+    : '';
+}
+// baixa uma cópia do que está na tela (com os filtros); o arquivo no SharePoint não é tocado
+function lgBaixar() {
+  if (!dmIsAdmin()) return;
+  const texto = lgFiltrado()
+    .slice()
+    .reverse()
+    .map(l => [l.quando, l.nome, l.email, l.acao, l.tela, l.detalhe].join(' | '))
+    .join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([texto + '\r\n'], { type: 'text/plain;charset=utf-8' }));
+  a.download = lgNomeMes(document.getElementById('lg-mes').value);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function lgAbrirPasta() {
+  if (dmIsAdmin() && /^https:\/\//.test(LG_VIEW.pastaUrl)) window.open(LG_VIEW.pastaUrl, '_blank', 'noopener');
+  else toast('A pasta de logs ainda não foi criada.', 'warning');
+}
+
 // ==================== CONFIGURAÇÕES (e-mail dos alertas administrativos) ====================
 async function cfgRead() {
   const rows = await dmReadRange(DM_CFG_TABLE, DM_CFG_COLS);
@@ -8026,6 +8457,10 @@ async function cfgSave() {
 renderPainel();
 atualizarLogo();
 refreshIcons();
+// ao esconder/fechar a aba, tenta gravar o que ainda está na fila de logs
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') lgFlush();
+});
 ctBoot();
 </script>
 </body>

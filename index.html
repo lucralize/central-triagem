@@ -704,6 +704,18 @@ textarea {
 select.form-control {
   cursor: pointer;
 }
+/* Lista nativa do select: fonte do sistema (a webfont Poppins deslocava o texto das opções no popup do Chrome) */
+select option,
+select optgroup {
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  text-indent: 0;
+  background: var(--lz-input-bg);
+  color: var(--lz-text);
+}
 textarea.form-control {
   resize: vertical;
   min-height: 70px;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Central de Triagem — Lucralize</title>
+<title>Portal Triagem — Lucralize</title>
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/lucralize/pagina-principal/main/lucralize-logo-horizontal.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -289,7 +289,9 @@ textarea {
 }
 #sidebar nav {
   flex: 1;
-  padding: 10px 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 0 10px;
 }
 .nav-section {
   padding: 14px 16px 5px;
@@ -302,13 +304,13 @@ textarea {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 16px;
+  gap: 9px;
+  padding: 8px 14px;
   cursor: pointer;
   border-left: 3px solid transparent;
   transition: all 0.15s;
   color: var(--lz-side-text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   margin: 1px 0;
 }
@@ -337,16 +339,6 @@ textarea {
   stroke-width: 2;
   opacity: 0.9;
 }
-.nav-badge {
-  margin-left: auto;
-  background: var(--lz-accent);
-  color: var(--lz-on-accent);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 0 8px;
-  border-radius: 999px;
-}
-
 /* ── MAIN ── */
 #main {
   margin-left: 240px;
@@ -707,7 +699,13 @@ select.form-control {
 /* Lista nativa do select: fonte do sistema (a webfont Poppins deslocava o texto das opções no popup do Chrome) */
 select option,
 select optgroup {
-  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    Roboto,
+    Arial,
+    sans-serif;
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0;
@@ -1690,73 +1688,105 @@ textarea::placeholder {
   color: var(--ink-faint);
 }
 
-.nav-item.nav-sub {
-  padding-left: 34px;
-}
-
-/* ── Menu lateral expansível (grupos em MAIÚSCULAS) ── */
-.grp-hdr {
+/* ── Menu lateral: seções fixas por empresa ── */
+.nav-section.nav-company {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px 8px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: var(--lz-side-muted);
-  cursor: pointer;
-  user-select: none;
-  transition: 0.15s;
-}
-.grp-hdr:hover {
   color: var(--lz-side-text-strong);
-  background: var(--lz-side-hover);
+  text-transform: none;
+  letter-spacing: 0.2px;
+  font-size: 14px;
 }
-.grp-hdr.open {
-  color: var(--lz-side-title);
+.nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-.grp-hdr .grp-title {
+.nav-dot-cont {
+  background: var(--lz-side-title);
+}
+.nav-dot-tech {
+  background: var(--lz-cat-3);
+}
+.pd-card {
   display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--lz-border);
+}
+.pd-urg {
+  background: var(--danger-bg);
+  border-color: var(--danger-line);
+}
+.pd-atn {
+  background: var(--warning-bg);
+  border-color: var(--warning-line);
+  cursor: pointer;
+}
+.pd-col {
+  flex-direction: column;
+  gap: 10px;
+}
+.pd-linha {
+  display: flex;
+  gap: 10px;
   align-items: center;
-  gap: 8px;
+  width: 100%;
+}
+.pd-body {
   flex: 1;
   min-width: 0;
 }
-.grp-hdr .grp-title svg,
-.grp-hdr .grp-title i[data-lucide] {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  stroke-width: 2;
+.pd-nome {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lz-text);
 }
-.grp-arrow {
+.pd-sub {
   font-size: 13px;
-  transition: transform 0.2s;
-  opacity: 0.55;
+  color: var(--lz-text-muted);
+  margin-top: 2px;
 }
-.grp-hdr.open .grp-arrow {
-  transform: rotate(90deg);
-  opacity: 1;
+.pd-item {
+  font-size: 13px;
+  color: var(--danger-ink);
+  margin-top: 4px;
+  cursor: pointer;
 }
-.grp-badge {
-  background: var(--lz-accent);
-  color: var(--lz-on-accent);
+.pd-item:hover {
+  text-decoration: underline;
+}
+.pd-tag {
   font-size: 13px;
   font-weight: 700;
-  padding: 0 8px;
+  white-space: nowrap;
+  color: var(--warning-ink);
+  background: var(--warning-bg-2);
+  padding: 3px 10px;
   border-radius: 999px;
-  letter-spacing: 0;
 }
-.grp-body {
-  display: none;
+.pd-det {
+  width: 100%;
+  background: var(--surface);
+  border-left: 3px solid var(--warning-ink);
+  border-radius: 8px;
+  padding: 9px 12px;
 }
-.grp-body.open {
-  display: block;
+.pd-ttl {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lz-text);
 }
-.grp-hdr[style*="display: none"] + .grp-body,
-.grp-hdr[style*="display:none"] + .grp-body {
-  display: none !important;
+.pd-mot {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--lz-text-muted);
+  margin-top: 3px;
 }
 /* ── Demandas ── */
 .dm-toolbar {
@@ -2370,8 +2400,7 @@ a {
   outline: 2px solid var(--lz-focus);
   outline-offset: 2px;
 }
-.nav-item:focus-visible,
-.grp-hdr:focus-visible {
+.nav-item:focus-visible {
   outline-offset: -2px;
 }
 .form-control:focus-visible {
@@ -2423,7 +2452,7 @@ a {
 <div id="login-gate">
   <div class="login-box">
     <div class="login-logo-wrap"><img class="login-logo" src="https://raw.githubusercontent.com/lucralize/pagina-principal/main/lucralize-logo-horizontal.png" alt="Lucralize" onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='https://raw.githubusercontent.com/infralucralize/pagina-principal/main/lucralize-logo-horizontal.png';}else{this.style.display='none';}"></div>
-    <div class="login-title">Central de Triagem</div>
+    <div class="login-title">Portal Triagem</div>
     <div class="login-sub">Acesso restrito à equipe Lucralize</div>
     <button class="login-ms-btn" id="login-gate-btn" onclick="ctLoginClick()" disabled>
       <svg width="20" height="20" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
@@ -2440,76 +2469,54 @@ a {
   <div id="sidebar-header">
     <div id="sidebar-logo">
       <img id="sidebar-logo-img" src="" alt="Lucralize" onerror="this.style.display='none'">
-      <div class="sidebar-caption">Central de Triagem</div>
+      <div class="sidebar-caption">Portal Triagem</div>
     </div>
   </div>
   <nav>
-    <div class="nav-section">Principal</div>
+    <div class="nav-section">Geral</div>
     <div class="nav-item active" tabindex="0" role="button" onclick="goTo('painel')" id="nav-painel">
       <span class="icon"><i data-lucide="layout-dashboard"></i></span> Painel Geral
     </div>
-    <div class="nav-section">Módulos</div>
-    <div class="grp-hdr" tabindex="0" role="button" id="nav-docs-head" data-grp="docs" onclick="navTogGrp('docs')" style="display:none"><span class="grp-title"><i data-lucide="clipboard-list"></i> Implantação / Documentos</span><span class="grp-badge" id="grp-badge-docs" style="display:none"></span><span class="grp-arrow">▶</span></div>
-    <div class="grp-body" id="gb-docs">
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('docs-cont')" id="nav-docs-cont" style="display:none">
-      <span class="icon"><i data-lucide="calculator"></i></span> Contabilidade
-      <span class="nav-badge" id="badge-docs-cont" style="display:none"></span>
+    <div class="nav-section nav-company" id="nav-sec-cont" style="display:none"><span class="nav-dot nav-dot-cont"></span>Lucralize Contabilidade</div>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('docs-cont')" id="nav-docs-cont" style="display:none">
+      <span class="icon"><i data-lucide="clipboard-list"></i></span> Implantação
     </div>
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('docs-tech')" id="nav-docs-tech" style="display:none">
-      <span class="icon"><i data-lucide="rocket"></i></span> Tech
-      <span class="nav-badge" id="badge-docs-tech" style="display:none"></span>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('certs-cont')" id="nav-certs-cont" style="display:none">
+      <span class="icon"><i data-lucide="shield-check"></i></span> Certificados / eCac
     </div>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('saida-cont')" id="nav-saida-cont" style="display:none">
+      <span class="icon"><i data-lucide="folder-output"></i></span> Encerramento de Clientes
     </div>
-    <div class="grp-hdr" tabindex="0" role="button" id="nav-certs-head" data-grp="certs" onclick="navTogGrp('certs')" style="display:none"><span class="grp-title"><i data-lucide="shield-check"></i> Certificados / eCac</span><span class="grp-badge" id="grp-badge-certs" style="display:none"></span><span class="grp-arrow">▶</span></div>
-    <div class="grp-body" id="gb-certs">
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('certs-cont')" id="nav-certs-cont" style="display:none">
-      <span class="icon"><i data-lucide="calculator"></i></span> Contabilidade
-      <span class="nav-badge" id="badge-certs-cont" style="display:none"></span>
+    <div class="nav-section nav-company" id="nav-sec-tech" style="display:none"><span class="nav-dot nav-dot-tech"></span>Lucralize Tech</div>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('docs-tech')" id="nav-docs-tech" style="display:none">
+      <span class="icon"><i data-lucide="clipboard-list"></i></span> Implantação
     </div>
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('certs-tech')" id="nav-certs-tech" style="display:none">
-      <span class="icon"><i data-lucide="rocket"></i></span> Tech
-      <span class="nav-badge" id="badge-certs-tech" style="display:none"></span>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('certs-tech')" id="nav-certs-tech" style="display:none">
+      <span class="icon"><i data-lucide="shield-check"></i></span> Certificados / eCac
     </div>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('saida-tech')" id="nav-saida-tech" style="display:none">
+      <span class="icon"><i data-lucide="folder-output"></i></span> Encerramento de Clientes
     </div>
-    <div class="grp-hdr" tabindex="0" role="button" id="nav-saida-head" data-grp="saida" onclick="navTogGrp('saida')" style="display:none"><span class="grp-title"><i data-lucide="log-out"></i> Saída de Clientes</span><span class="grp-badge" id="grp-badge-saida" style="display:none"></span><span class="grp-arrow">▶</span></div>
-    <div class="grp-body" id="gb-saida">
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('saida-cont')" id="nav-saida-cont" style="display:none">
-      <span class="icon"><i data-lucide="calculator"></i></span> Contabilidade
-      <span class="nav-badge" id="badge-saida-cont" style="display:none"></span>
-    </div>
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('saida-tech')" id="nav-saida-tech" style="display:none">
-      <span class="icon"><i data-lucide="rocket"></i></span> Tech
-      <span class="nav-badge" id="badge-saida-tech" style="display:none"></span>
-    </div>
-    </div>
-    <div class="grp-hdr" tabindex="0" role="button" id="nav-susp-head" data-grp="susp" onclick="navTogGrp('susp')" style="display:none"><span class="grp-title"><i data-lucide="circle-pause"></i> Suspenso / Em Cancelamento</span><span class="grp-badge" id="grp-badge-susp" style="display:none"></span><span class="grp-arrow">▶</span></div>
-    <div class="grp-body" id="gb-susp">
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('suspensos')" id="nav-suspensos" style="display:none">
+    <div class="nav-section" id="nav-sec-susp" style="display:none">Suspenso / Em Cancelamento</div>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('suspensos')" id="nav-suspensos" style="display:none">
       <span class="icon"><i data-lucide="circle-pause"></i></span> Clientes
-      <span class="nav-badge" id="badge-susp" style="display:none"></span>
     </div>
-    </div>
-    <div class="grp-hdr" tabindex="0" role="button" id="nav-dem-head" data-grp="dem" onclick="navTogGrp('dem')" style="display:none"><span class="grp-title"><i data-lucide="calendar-check"></i> Demandas</span><span class="grp-badge" id="grp-badge-dem" style="display:none"></span><span class="grp-arrow">▶</span></div>
-    <div class="grp-body" id="gb-dem">
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('dem-semanal')" id="nav-dem-semanal" style="display:none">
+    <div class="nav-section" id="nav-sec-dem" style="display:none">Demandas</div>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('dem-semanal')" id="nav-dem-semanal" style="display:none">
       <span class="icon"><i data-lucide="layout-grid"></i></span> Semanal
     </div>
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('dem-colab')" id="nav-dem-colab" style="display:none">
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('dem-colab')" id="nav-dem-colab" style="display:none">
       <span class="icon"><i data-lucide="users"></i></span> Por colaborador
-      <span class="nav-badge" id="badge-dem-colab" style="display:none"></span>
     </div>
-    </div>
-    <div class="grp-hdr" tabindex="0" role="button" id="nav-adm-head" data-grp="adm" onclick="navTogGrp('adm')" style="display:none"><span class="grp-title"><i data-lucide="settings"></i> Administração</span><span class="grp-badge" id="grp-badge-adm" style="display:none"></span><span class="grp-arrow">▶</span></div>
-    <div class="grp-body" id="gb-adm">
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('usuarios')" id="nav-usuarios" style="display:none">
+    <div class="nav-section" id="nav-sec-adm" style="display:none">Administração</div>
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('usuarios')" id="nav-usuarios" style="display:none">
       <span class="icon"><i data-lucide="users"></i></span> Usuários
     </div>
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('configuracoes')" id="nav-configuracoes" style="display:none">
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('configuracoes')" id="nav-configuracoes" style="display:none">
       <span class="icon"><i data-lucide="settings"></i></span> Configurações
     </div>
-    <div class="nav-item nav-sub" tabindex="0" role="button" onclick="goTo('logs')" id="nav-logs" style="display:none">
+    <div class="nav-item" tabindex="0" role="button" onclick="goTo('logs')" id="nav-logs" style="display:none">
       <span class="icon"><i data-lucide="scroll-text"></i></span> Logs
-    </div>
     </div>
   </nav>
   <div id="sidebar-footer">
@@ -3761,13 +3768,12 @@ function ctApplyPermissions() {
   };
   show('nav-configuracoes', ctCanAccess('configuracoes'));
   show('nav-logs', ctCanAccess('logs'));
-  show('nav-docs-head', ctCanAccess('docs-cont') || ctCanAccess('docs-tech'));
-  show('nav-certs-head', ctCanAccess('certs-cont') || ctCanAccess('certs-tech'));
-  show('nav-saida-head', ctCanAccess('saida-cont') || ctCanAccess('saida-tech'));
-  show('nav-susp-head', ctCanAccess('suspensos'));
-  show('nav-dem-head', ctCanAccess('dem-semanal') || ctCanAccess('dem-colab'));
-  show('nav-adm-head', ctCanAccess('usuarios') || ctCanAccess('configuracoes') || ctCanAccess('logs'));
-  navRestore();
+  const alguma = pgs => pgs.some(p => ctCanAccess(p));
+  show('nav-sec-cont', alguma(['docs-cont', 'certs-cont', 'saida-cont']));
+  show('nav-sec-tech', alguma(['docs-tech', 'certs-tech', 'saida-tech']));
+  show('nav-sec-susp', ctCanAccess('suspensos'));
+  show('nav-sec-dem', alguma(['dem-semanal', 'dem-colab']));
+  show('nav-sec-adm', alguma(['usuarios', 'configuracoes', 'logs']));
 }
 function ctIsProtected(u) {
   return String(u.email).toLowerCase() === CT_SUPER_ADMIN_EMAIL;
@@ -4239,7 +4245,6 @@ async function spFetchClientStatuses() {
   }
   _clientStatusCache = all;
   renderSuspTable();
-  updateBadges();
   if (errors.length) toast('Erro ao sincronizar status de clientes — ' + errors.join(' | '), 'error');
   await spFetchSaidaClientes();
 }
@@ -4325,7 +4330,6 @@ async function spSyncCertsPull() {
     });
     dbSet('certs', merged);
     renderCertsTable();
-    updateBadges();
     _spSetStatus(`✅ Sincronizado (${all.length} itens do SharePoint)`);
     toast('Certificados sincronizados com o SharePoint!');
   } catch (e) {
@@ -4375,7 +4379,6 @@ function deleteItem(key, id, cb) {
   }
   dbDelete(key, id);
   if (typeof cb === 'function') cb();
-  updateBadges();
 }
 
 // ── gravação local de um item ──
@@ -4472,10 +4475,6 @@ function goTo(page) {
   const nv = document.getElementById('nav-' + page);
   if (pg) pg.classList.add('active');
   if (nv) nv.classList.add('active');
-  if (nv) {
-    const gb = nv.closest('.grp-body');
-    if (gb && !gb.classList.contains('open')) navSetGroup(gb.id.slice(3), true, true);
-  }
   document.getElementById('page-title').textContent = pages[page] || page;
   document.getElementById('page-subtitle').textContent = subtitles[page] || '';
   currentPage = page;
@@ -4514,32 +4513,48 @@ document.querySelectorAll('.modal-overlay').forEach(o =>
   })
 );
 
-// ==================== CONTADORES DO MENU ====================
-function updateBadges() {
-  const certs = ckCertsVisible();
-  setBadge('badge-docs-cont', _checklistCache.filter(d => d.divisao === 'Contabilidade').length);
-  setBadge('badge-docs-tech', _checklistCache.filter(d => d.divisao === 'Tech').length);
-  const v30 = c => {
-    const d = daysDiff(c.vencimento);
-    return d !== null && d >= 0 && d <= 30;
-  };
-  setBadge('badge-certs-cont', certs.filter(c => c.divisao === 'Contabilidade' && v30(c)).length);
-  setBadge('badge-certs-tech', certs.filter(c => c.divisao === 'Tech' && v30(c)).length);
-  setBadge('badge-saida-cont', _saidaCache.filter(s => s.divisao === 'Contabilidade').length);
-  setBadge('badge-saida-tech', _saidaCache.filter(s => s.divisao === 'Tech').length);
-  setBadge('badge-susp', _clientStatusCache.filter(c => c.situacao === 'SUSPENSO' || c.situacao === 'EM CANCELAMENTO').length);
-  navGroupBadges();
+// avisos das Demandas no Painel Geral: urgentes em aberto e demandas movidas que ainda estão pendentes
+function painelDemandas() {
+  const out = { urg: '', atn: '', nUrg: 0, nAtn: 0 };
+  if (!SESSION || !DM_LOADED || !ctCanAccess('dem-semanal')) return out;
+  const T = dmToday();
+  const abertas = dmVisible().filter(d => dmIsOpen(d) && d.data && d.data <= T);
+  const urg = abertas.filter(d => d.prioridade === 'Alta');
+  const mov = abertas.filter(dmIsMoved);
+  const porPessoa = {};
+  urg.forEach(d => {
+    (porPessoa[d.responsavelEmail] = porPessoa[d.responsavelEmail] || {
+      u: { nome: d.responsavel, email: d.responsavelEmail },
+      itens: []
+    }).itens.push(d);
+  });
+  out.nUrg = urg.length;
+  out.nAtn = mov.length;
+  out.urg = Object.values(porPessoa)
+    .map(
+      ({ u, itens }) =>
+        `<div class="pd-card pd-urg">${dmAv(u, 34)}<div class="pd-body"><div class="pd-nome">${ctEsc(u.nome)}</div>` +
+        `<div class="pd-sub">${itens.length} urgente${itens.length > 1 ? 's' : ''} pendente${itens.length > 1 ? 's' : ''}</div>` +
+        itens.map(d => `<div class="pd-item" onclick="dmOpenDetail(${ctJs(d.id)})">• ${ctEsc(d.titulo)}</div>`).join('') +
+        '</div></div>'
+    )
+    .join('');
+  out.atn = mov
+    .map(d => {
+      const u = { nome: d.responsavel, email: d.responsavelEmail };
+      return (
+        `<div class="pd-card pd-atn pd-col" onclick="dmOpenDetail(${ctJs(d.id)})">` +
+        `<div class="pd-linha">${dmAv(u, 30)}<div class="pd-body"><div class="pd-nome">${ctEsc(u.nome)}</div>` +
+        `<div class="pd-sub">moveu uma obrigação e ainda está com ela pendente</div></div>` +
+        `<span class="pd-tag">Movida de ${ctEsc(dmFmtShort(d.dataOriginal))}</span></div>` +
+        `<div class="pd-det"><div class="pd-ttl">${ctEsc(d.titulo)}</div>` +
+        (d.justificativa ? `<div class="pd-mot">Motivo: ${ctEsc(d.justificativa)}</div>` : '') +
+        `<div class="pd-sub">Status atual: <strong>${ctEsc(DM_ST_LABEL[d.st] || d.st)}</strong></div></div></div>`
+      );
+    })
+    .join('');
+  return out;
 }
-function setBadge(id, n) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (n > 0) {
-    el.textContent = n;
-    el.style.display = '';
-  } else el.style.display = 'none';
-}
-
-// ==================== PAINEL ====================
 function renderPainel() {
   const certs = ckCertsVisible();
   const cv15 = certs.filter(c => {
@@ -4562,11 +4577,12 @@ function renderPainel() {
   const sa = _clientStatusCache.filter(c => c.situacao === 'SUSPENSO');
   const sec = _clientStatusCache.filter(c => c.situacao === 'EM CANCELAMENTO');
   const dp = _checklistCache;
-  const tot = cv15.length + pv15.length + sp.length;
+  const pd = painelDemandas();
+  const tot = cv15.length + pv15.length + sp.length + pd.nUrg;
 
   document.getElementById('painel-stats').innerHTML = `
     <div class="stat-card"><div class="stat-icon red"><i data-lucide="triangle-alert"></i></div><div><div class="stat-value">${tot}</div><div class="stat-label">Urgentes</div><div class="stat-sub">Ação imediata</div></div></div>
-    <div class="stat-card"><div class="stat-icon yellow"><i data-lucide="clock"></i></div><div><div class="stat-value">${cv30.length + pv30.length}</div><div class="stat-label">Atenção</div><div class="stat-sub">Acompanhar</div></div></div>
+    <div class="stat-card"><div class="stat-icon yellow"><i data-lucide="clock"></i></div><div><div class="stat-value">${cv30.length + pv30.length + pd.nAtn}</div><div class="stat-label">Atenção</div><div class="stat-sub">Acompanhar</div></div></div>
     <div class="stat-card"><div class="stat-icon blue"><i data-lucide="clipboard-list"></i></div><div><div class="stat-value">${dp.length}</div><div class="stat-label">Docs Pendentes</div><div class="stat-sub">Checklists incompletos</div></div></div>
     <div class="stat-card"><div class="stat-icon gray"><i data-lucide="circle-pause"></i></div><div><div class="stat-value">${sa.length}</div><div class="stat-label">Suspensos</div><div class="stat-sub">Contratos ativos</div></div></div>`;
 
@@ -4577,6 +4593,7 @@ function renderPainel() {
     urg += `<div class="alert alert-danger"><i data-lucide="file-text"></i><strong>${pv15.length} procuração(ões) eCac</strong> vencendo em ≤15 dias</div>`;
   if (sp.length)
     urg += `<div class="alert alert-danger"><i data-lucide="log-out"></i><strong>${sp.length} envio(s)</strong> de documentos pendentes (saída)</div>`;
+  urg += pd.urg;
   document.getElementById('painel-urgente').innerHTML = urg || '<p class="text-gray text-sm">✅ Nenhuma urgência.</p>';
 
   let atn = '';
@@ -4585,6 +4602,7 @@ function renderPainel() {
   if (pv30.length)
     atn += `<div class="alert alert-warning"><i data-lucide="file-text"></i>${pv30.length} procuração(ões) vencendo em 16–30 dias</div>`;
   if (sec.length) atn += `<div class="alert alert-warning"><i data-lucide="ban"></i>${sec.length} cliente(s) em cancelamento</div>`;
+  atn += pd.atn;
   document.getElementById('painel-atencao').innerHTML = atn || '<p class="text-gray text-sm">✅ Nada a acompanhar.</p>';
 
   let dh = '';
@@ -4610,7 +4628,6 @@ function renderPainel() {
     <div class="flex-between text-sm" style="padding:3px 0;"><span>Em cancelamento</span><span class="badge badge-danger">${_saidaCache.length}</span></div>
     <div class="flex-between text-sm" style="padding:3px 0;"><span>Documentação pendente</span><span class="badge badge-danger">${sp.length}</span></div>`;
   refreshIcons();
-  updateBadges();
 }
 
 // ==================== CERTIFICADOS / eCac — cadastro, tabela e alertas ====================
@@ -4713,7 +4730,6 @@ function saveCert() {
   spPushCert(saved);
   closeModal('modal-cert');
   renderCertsTable();
-  updateBadges();
   toast(currentEditId ? 'Certificado atualizado!' : 'Certificado cadastrado!');
 }
 // Certificados visíveis com a busca e todos os filtros da tela (usado pela tabela e por todas as exportações).
@@ -4856,7 +4872,6 @@ function confirmarEnvioAlerta() {
   }
   closeModal('modal-alerta-cert');
   renderCertsTable();
-  updateBadges();
   toast('Alerta marcado como enviado!');
   alertaCertId = null;
   alertaTipo = null;
@@ -6063,7 +6078,6 @@ async function spFetchChecklist() {
   _checklistCache = all;
   _ckLoadedAt = Date.now();
   renderDocsTable();
-  updateBadges();
   ckRenderBanner();
   if (errors.length) toast('Erro ao sincronizar checklist de documentos — ' + errors.join(' | '), 'error');
 }
@@ -6263,7 +6277,6 @@ async function checklistMarcarRecebido(itemId, divisao, checkboxEl) {
     _checklistCache = _checklistCache.filter(c => !(c.itemId === itemId && c.divisao === divisao));
     closeModal('modal-view-docs');
     renderDocsTable();
-    updateBadges();
     toast('Documentação marcada como recebida!');
   } catch (e) {
     console.error(e);
@@ -6660,7 +6673,7 @@ document.getElementById('sidebar').addEventListener('click', ev => {
 document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape') navToggle(false);
   const alvo = ev.target;
-  if ((ev.key === 'Enter' || ev.key === ' ') && alvo.matches && alvo.matches('.nav-item[tabindex], .grp-hdr[tabindex]')) {
+  if ((ev.key === 'Enter' || ev.key === ' ') && alvo.matches && alvo.matches('.nav-item[tabindex]')) {
     ev.preventDefault();
     alvo.click(); // itens do menu são <div>: Enter/Espaço fazem o mesmo que o clique
   }
@@ -6825,7 +6838,6 @@ async function spFetchSaidaClientes() {
   _saidaCache = all;
   _sdLoadedAt = Date.now();
   renderSaidaTable();
-  updateBadges();
   sdRenderBanner();
   if (errors.length) toast('Erro ao sincronizar saída de clientes — ' + errors.join(' | '), 'error');
 }
@@ -6915,7 +6927,6 @@ async function spMarcarDocEnviada(itemId, divisao) {
     _saidaCache = _saidaCache.filter(s => !(s.itemId === itemId && s.divisao === divisao));
     if (_sdView.itemId === itemId) closeModal('modal-saida');
     renderSaidaTable();
-    updateBadges();
     toast('Documentação marcada como ' + (divisao === 'Tech' ? 'recebida' : 'enviada') + '!');
   } catch (e) {
     console.error('Erro ao marcar documentação:', e);
@@ -7080,61 +7091,6 @@ document.getElementById('modal-saida-body').addEventListener('change', ev => {
   if (el.dataset.sd === 'dep') sdSetDep(id, dv, el.dataset.d, el.value, el);
   else if (el.dataset.sd === 'resp') sdSetResp(id, dv, el.value);
 });
-
-// ==================== MENU LATERAL EXPANSÍVEL ====================
-const NAV_OPEN_KEY = 'ct_nav_open';
-function navGroupEls(g) {
-  return { head: document.getElementById('nav-' + g + '-head'), body: document.getElementById('gb-' + g) };
-}
-function navSaveOpen() {
-  try {
-    const abertos = [...document.querySelectorAll('.grp-hdr[data-grp].open')].map(h => h.dataset.grp);
-    localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(abertos));
-  } catch (e) {
-    /* sem armazenamento: o menu apenas não lembra */
-  }
-}
-function navSetGroup(g, abrir, salvar) {
-  const { head, body } = navGroupEls(g);
-  if (!head || !body) return;
-  head.classList.toggle('open', abrir);
-  body.classList.toggle('open', abrir);
-  if (salvar) navSaveOpen();
-  navGroupBadges();
-}
-function navTogGrp(g) {
-  const { head } = navGroupEls(g);
-  if (head) navSetGroup(g, !head.classList.contains('open'), true);
-}
-function navRestore() {
-  let abertos = [];
-  try {
-    abertos = JSON.parse(localStorage.getItem(NAV_OPEN_KEY) || '[]') || [];
-  } catch (e) {
-    abertos = [];
-  }
-  document.querySelectorAll('.grp-hdr[data-grp]').forEach(h => navSetGroup(h.dataset.grp, abertos.includes(h.dataset.grp), false));
-}
-// com o grupo fechado, o total de pendências dos itens aparece no título do grupo
-function navGroupBadges() {
-  document.querySelectorAll('.grp-hdr[data-grp]').forEach(h => {
-    const g = h.dataset.grp,
-      body = document.getElementById('gb-' + g),
-      b = document.getElementById('grp-badge-' + g);
-    if (!body || !b) return;
-    let soma = 0;
-    body.querySelectorAll('.nav-badge').forEach(x => {
-      if (x.style.display !== 'none') {
-        const n = parseInt(x.textContent, 10);
-        if (n > 0) soma += n;
-      }
-    });
-    if (soma > 0 && !body.classList.contains('open')) {
-      b.textContent = soma > 99 ? '99+' : String(soma);
-      b.style.display = '';
-    } else b.style.display = 'none';
-  });
-}
 
 // ==================== DEMANDAS ====================
 // Dados em tabelas da própria planilha CentralTriagem.xlsx (abas Demandas e Config).
@@ -7989,11 +7945,9 @@ function dmColabHtml() {
   if (!shown.length) h += '<div class="empty-state"><p>Nenhum colaborador com acesso a Demandas.</p></div>';
   return h;
 }
+// o Painel Geral mostra urgentes e movidas: redesenha quando as demandas mudam ou terminam de carregar
 function dmUpdateBadge() {
-  if (!SESSION) return;
-  const n = ctCanAccess('dem-colab') ? dmVisible().filter(dmIsLate).length : 0;
-  setBadge('badge-dem-colab', n);
-  navGroupBadges();
+  if (SESSION && currentPage === 'painel') renderPainel();
 }
 
 // ── painel de detalhe ──
